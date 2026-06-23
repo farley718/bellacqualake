@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bell Acqua Lake — Member Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --navy-dark:  #0d2137;
+      --navy:       #1a4a6e;
+      --blue:       #2e9cca;
+      --blue-light: #e3f4fb;
+      --gold:       #f4a61d;
+      --gold-light: #fff8e8;
+      --bg:         #f0f7fc;
+      --white:      #ffffff;
+      --red:        #e74c3c;
+      --red-light:  #fdf0ef;
+      --green:      #27ae60;
+      --green-light:#e8f8ef;
+      --gray:       #6b7280;
+      --gray-light: #f3f4f6;
+      --border:     #d1e3ee;
+      --shadow:     0 4px 24px rgba(13,33,55,0.10);
+      --shadow-md:  0 8px 32px rgba(13,33,55,0.15);
+      --radius:     12px;
+      --radius-sm:  8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--navy-dark); min-height: 100vh; }
+
+    /* ── Login ── */
+    #loginScreen {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--navy-dark);
+    }
+    .login-card {
+      background: white; border-radius: 16px; padding: 40px 36px;
+      width: 100%; max-width: 380px; box-shadow: var(--shadow-md); text-align: center;
+    }
+    .login-logo { width: 72px; height: 72px; margin: 0 auto 16px; }
+    .login-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .login-title { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 800; color: var(--navy-dark); margin-bottom: 4px; }
+    .login-sub   { font-size: .82rem; color: var(--gray); margin-bottom: 28px; }
+    .field       { margin-bottom: 16px; text-align: left; }
+    .field label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
+    .field input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: .95rem; font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s; }
+    .field input:focus { border-color: var(--blue); }
+    .btn-primary { width: 100%; padding: 13px; background: var(--navy-dark); color: white; border: none; border-radius: var(--radius-sm); font-size: .95rem; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: background .2s; }
+    .btn-primary:hover:not(:disabled) { background: var(--navy); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .login-error { font-size: .82rem; color: var(--red); margin-top: 12px; min-height: 18px; }
+
+    /* ── App shell ── */
+    #app { display: none; }
+    .app-header { background: var(--navy-dark); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-md); position: sticky; top: 0; z-index: 100; }
+    .hdr-left  { display: flex; align-items: center; gap: 12px; }
+    .hdr-logo  { width: 38px; height: 38px; flex-shrink: 0; }
+    .hdr-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .hdr-title { font-family: 'Montserrat', sans-serif; font-size: 1rem; font-weight: 800; color: white; }
+    .hdr-badge { background: var(--gold); color: var(--navy-dark); font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .8px; }
+    .hdr-right { display: flex; align-items: center; gap: 10px; }
+    .hdr-name  { color: rgba(255,255,255,.72); font-size: .82rem; }
+    .btn-logout { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); color: white; padding: 6px 14px; border-radius: var(--radius-sm); font-size: .78rem; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: background .2s; }
+    .btn-logout:hover { background: rgba(255,255,255,.2); }
+
+    /* ── Layout ── */
+    .main { max-width: 920px; margin: 0 auto; padding: 24px 16px 60px; }
+    .grid { display: grid; grid-template-columns: 310px 1fr; gap: 20px; align-items: start; }
+    @media(max-width: 740px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .card-head { padding: 16px 20px 14px; border-bottom: 1px solid var(--border); }
+    .card-title { font-family: 'Montserrat', sans-serif; font-size: .95rem; font-weight: 800; color: var(--navy-dark); }
+    .card-body  { padding: 16px 20px; }
+
+    /* ── Calendar ── */
+    .cal-nav       { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .cal-month-lbl { font-family: 'Montserrat', sans-serif; font-size: .93rem; font-weight: 700; color: var(--navy-dark); }
+    .cal-nav-btn   { background: none; border: 1.5px solid var(--border); border-radius: 7px; width: 30px; height: 30px; cursor: pointer; font-size: .9rem; display: flex; align-items: center; justify-content: center; transition: border-color .2s; }
+    .cal-nav-btn:hover { border-color: var(--navy); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal-dow  { text-align: center; font-size: .68rem; font-weight: 600; color: var(--gray); padding: 4px 0; }
+    .cal-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 7px; font-size: .8rem; font-weight: 500; cursor: default; border: 1.5px solid transparent; transition: all .15s; }
+    .cal-cell.avail   { cursor: pointer; }
+    .cal-cell.avail:hover { background: var(--blue-light); border-color: var(--blue); }
+    .cal-cell.selected { background: var(--navy-dark); color: white; border-color: var(--navy-dark); }
+    .cal-cell.today    { font-weight: 800; color: var(--blue); }
+    .cal-cell.today.selected { color: white; }
+    .cal-cell.past     { color: #d1d5db; }
+
+    /* ── Slot panel ── */
+    .slot-day-hdr  { font-size: .85rem; font-weight: 600; color: var(--navy-dark); padding: 16px 20px 8px; }
+    .slot-legend   { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 20px 14px; }
+    .legend-item   { display: flex; align-items: center; gap: 5px; font-size: .72rem; color: var(--gray); }
+    .legend-dot    { width: 10px; height: 10px; border-radius: 3px; }
+    .slot-scroller { max-height: 400px; overflow-y: auto; padding: 0 20px 16px; }
+    .hour-group    { margin-bottom: 14px; }
+    .hour-label    { font-size: .7rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+    .slot-row      { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .slot-btn {
+      padding: 8px 4px; border: 1.5px solid var(--border); border-radius: 8px;
+      background: white; font-size: .7rem; font-weight: 600; text-align: center;
+      cursor: pointer; font-family: 'Inter', sans-serif; transition: all .15s; line-height: 1.4;
+    }
+    .slot-btn:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-light); }
+    .slot-btn.mine   { background: var(--green-light); border-color: var(--green); color: #1a7a3f; cursor: pointer; }
+    .slot-btn.mine:hover { background: #c5f0d5; }
+    .slot-btn.taken  { background: var(--gray-light); color: #d1d5db; cursor: not-allowed; border-color: transparent; }
+    .slot-btn.locked { background: var(--gray-light); color: #9ca3af; cursor: not-allowed; border-color: transparent; font-size: .65rem; }
+    .slot-empty    { padding: 40px 20px; text-align: center; color: var(--gray); font-size: .88rem; line-height: 1.6; }
+
+    /* ── Upcoming bookings ── */
+    .upcoming-list { display: flex; flex-direction: column; gap: 10px; }
+    .bk-item   { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .bk-date   { font-size: .78rem; font-weight: 700; color: var(--navy-dark); }
+    .bk-slot   { font-size: .8rem; color: var(--gray); margin-top: 2px; }
+    .btn-cancel-sm { background: none; border: 1.5px solid var(--border); color: var(--red); padding: 5px 11px; border-radius: 6px; font-size: .72rem; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: all .2s; white-space: nowrap; }
+    .btn-cancel-sm:hover { border-color: var(--red); background: var(--red-light); }
+    .no-bookings { font-size: .85rem; color: var(--gray); text-align: center; padding: 16px 0; }
+
+    /* ── Misc ── */
+    .spin { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--gray); font-size: .85rem; gap: 8px; }
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--navy-dark); color: white; padding: 12px 28px; border-radius: 30px; font-size: .85rem; font-weight: 500; box-shadow: var(--shadow-md); opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; white-space: nowrap; }
+    #toast.show    { opacity: 1; }
+    #toast.success { background: var(--green); }
+    #toast.error   { background: var(--red); }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ─────────────────────────────────────────────── -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><img src="bell-acqua-logo.png" alt="Bell Acqua Lake"/></div>
+    <div class="login-title">Member Portal</div>
+    <div class="login-sub">Annual members — sign in to book your lake time</div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" required placeholder="you@email.com"/>
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required placeholder="••••••••"/>
+      </div>
+      <button type="submit" class="btn-primary" id="loginBtn">Sign In</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ── APP ───────────────────────────────────────────────── -->
+<div id="app">
+  <header class="app-header">
+    <div class="hdr-left">
+      <div class="hdr-logo"><img src="bell-acqua-logo.png" alt=""/></div>
+      <div class="hdr-title">Bell Acqua Lake</div>
+      <span class="hdr-badge">Member</span>
+    </div>
+    <div class="hdr-right">
+      <span class="hdr-name" id="memberName"></span>
+      <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="grid">
+
+      <!-- Left column -->
+      <div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Select a Date</div></div>
+          <div class="card-body">
+            <div class="cal-nav">
+              <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+              <div class="cal-month-lbl" id="calMonthLbl"></div>
+              <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><div class="card-title">My Upcoming Bookings</div></div>
+          <div class="card-body" id="upcomingPanel">
+            <div class="no-bookings">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column: slots -->
+      <div class="card">
+        <div class="card-head"><div class="card-title">Available Slots</div></div>
+        <div id="slotPanel">
+          <div class="slot-empty">← Pick a date on the calendar to see available 30-minute slots.</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ── CONFIG ────────────────────────────────────────────────── */
+const CONFIG = {
+  SUPABASE_URL:  'https://euznpkrkkaieykznztho.supabase.co',
+  ANON_KEY:      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
+  NOTIFY_URL:    'https://euznpkrkkaieykznztho.supabase.co/functions/v1/notify-member-booking',
+  DAY_START:     { h: 7,  m: 30 },  // 7:30 AM
+  DAY_END_LAST:  { h: 20, m: 0  },  // end boundary 8:00 PM (last slot starts at 7:30 PM)
+  SLOT_MINS:     30,
+  MAX_PER_DAY:   2,
+  WINDOW_MINS:   120,
+};
+
+/* ── STATE ─────────────────────────────────────────────────── */
+const S = {
+  token:         null,
+  user:          null,
+  calYear:       null,
+  calMonth:      null,
+  selectedDate:  null,
+  takenSlots:    [],   // slot_start strings booked by others (confirmed)
+  myDayBookings: [],   // { id, slot_start } for current user on selected date
+  upcoming:      [],
+};
+
+/* ── SUPABASE REST ─────────────────────────────────────────── */
+function hdrs(extra = {}) {
+  return {
+    'apikey':        CONFIG.ANON_KEY,
+    'Authorization': `Bearer ${S.token}`,
+    'Content-Type':  'application/json',
+    'Prefer':        'return=representation',
+    ...extra,
+  };
+}
+
+async function sbGet(path) {
+  const r = await fetch(CONFIG.SUPABASE_URL + path, { headers: hdrs() });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbPost(path, body) {
+  const r = await fetch(CONFIG.SUPABASE_URL + path, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbPatch(path, body) {
+  const r = await fetch(CONFIG.SUPABASE_URL + path, { method: 'PATCH', headers: hdrs(), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* ── AUTH ──────────────────────────────────────────────────── */
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginError');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  try {
+    const res  = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': CONFIG.ANON_KEY, 'Content-Type': 'application/json' },
+      body:   JSON.stringify({ email, password: pass }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error_description || data.msg || 'Login failed. Check your credentials.');
+    S.token = data.access_token;
+    S.user  = data.user;
+    localStorage.setItem('ba_m_tok', data.access_token);
+    localStorage.setItem('ba_m_ref', data.refresh_token);
+    startApp();
+  } catch (ex) {
+    err.textContent = ex.message;
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+async function tryRestoreSession() {
+  const tok = localStorage.getItem('ba_m_tok');
+  if (!tok) return false;
+  try {
+    const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${tok}` }
+    });
+    if (!res.ok) return false;
+    S.token = tok;
+    S.user  = await res.json();
+    return true;
+  } catch { return false; }
+}
+
+function handleLogout() {
+  localStorage.removeItem('ba_m_tok');
+  localStorage.removeItem('ba_m_ref');
+  S.token = null; S.user = null; S.selectedDate = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').textContent = 'Sign In';
+}
+
+/* ── APP START ─────────────────────────────────────────────── */
+function startApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const name = S.user.user_metadata?.full_name || S.user.email;
+  document.getElementById('memberName').textContent = name;
+  const now = new Date();
+  S.calYear  = now.getFullYear();
+  S.calMonth = now.getMonth();
+  renderCalendar();
+  loadUpcoming();
+}
+
+/* ── CALENDAR ──────────────────────────────────────────────── */
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW    = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+function changeMonth(dir) {
+  S.calMonth += dir;
+  if (S.calMonth < 0)  { S.calMonth = 11; S.calYear--; }
+  if (S.calMonth > 11) { S.calMonth = 0;  S.calYear++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  document.getElementById('calMonthLbl').textContent = `${MONTHS[S.calMonth]} ${S.calYear}`;
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = DOW.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDow = new Date(S.calYear, S.calMonth, 1).getDay();
+  for (let i = 0; i < firstDow; i++) grid.insertAdjacentHTML('beforeend', '<div></div>');
+
+  const totalDays = new Date(S.calYear, S.calMonth + 1, 0).getDate();
+  for (let d = 1; d <= totalDays; d++) {
+    const date = new Date(S.calYear, S.calMonth, d);
+    const iso  = isoDate(date);
+    const past = date < today;
+    const isTod = date.getTime() === today.getTime();
+    const isSel = iso === S.selectedDate;
+    let cls = 'cal-cell' + (past ? ' past' : ' avail') + (isTod ? ' today' : '') + (isSel ? ' selected' : '');
+    const click = past ? '' : `onclick="selectDate('${iso}')"`;
+    grid.insertAdjacentHTML('beforeend', `<div class="${cls}" ${click}>${d}</div>`);
+  }
+}
+
+function isoDate(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+/* ── SLOTS ─────────────────────────────────────────────────── */
+function generateSlots() {
+  const slots = [];
+  // Bottom-of-the-hour 30-minute slots (h:30 - (h+1):00)
+  for (let h = CONFIG.DAY_START.h; h < CONFIG.DAY_END_LAST.h; h++) {
+    const start = `${pad(h)}:30`;
+    const end = `${pad(h + 1)}:00`;
+    slots.push({ start, end });
+  }
+  return slots;
+}
+
+function toMins(timeStr) {
+  // handles "HH:MM" and "HH:MM:SS"
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function slotStatus(slotStart, takenSlots, myBookings) {
+  const isMine = myBookings.some(b => b.slot_start.slice(0,5) === slotStart);
+  if (isMine) return 'mine';
+  if (takenSlots.some(t => t.slice(0,5) === slotStart)) return 'taken';
+  if (myBookings.length >= CONFIG.MAX_PER_DAY) return 'locked';
+  if (myBookings.length === 1) {
+    const existMins = toMins(myBookings[0].slot_start);
+    const thisMins  = toMins(slotStart);
+    if (Math.abs(thisMins - existMins) > CONFIG.WINDOW_MINS) return 'locked';
+  }
+  return 'available';
+}
+
+/* ── LOAD DAY DATA ─────────────────────────────────────────── */
+async function selectDate(iso) {
+  S.selectedDate = iso;
+  renderCalendar();
+  document.getElementById('slotPanel').innerHTML = '<div class="loading"><span class="spin">⟳</span> Loading…</div>';
+
+  try {
+    const rows = await sbGet(
+      `/rest/v1/member_bookings?booking_date=eq.${iso}&status=eq.confirmed&select=id,slot_start,member_id`
+    );
+    S.takenSlots    = rows.filter(r => r.member_id !== S.user.id).map(r => r.slot_start);
+    S.myDayBookings = rows.filter(r => r.member_id === S.user.id);
+    renderSlots();
+  } catch (ex) {
+    showToast('Could not load slots', 'error');
+  }
+}
+
+/* ── RENDER SLOTS ──────────────────────────────────────────── */
+function fmt12(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+  return `${h12}:${pad(m)} ${ap}`;
+}
+
+function renderSlots() {
+  const date = new Date(S.selectedDate + 'T00:00:00');
+  const dateLabel = date.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  const myCount = S.myDayBookings.length;
+
+  const slots = generateSlots();
+  const byHour = {};
+  slots.forEach(s => {
+    const h = s.start.split(':')[0];
+    if (!byHour[h]) byHour[h] = [];
+    byHour[h].push(s);
+  });
+
+  const legendHtml = `
+    <div class="slot-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--border);border:1.5px solid var(--border)"></div> Available</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green-light);border:1.5px solid var(--green)"></div> My booking</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gray-light)"></div> Taken / Locked</div>
+    </div>`;
+
+  let limitNote = '';
+  if (myCount >= CONFIG.MAX_PER_DAY) {
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--gold-light);border-radius:8px;font-size:.78rem;color:#7a4a00;font-weight:600;">You have 2 bookings on this day — daily limit reached.</div>`;
+  } else if (myCount === 1) {
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--blue-light);border-radius:8px;font-size:.78rem;color:var(--navy);font-weight:600;">1 of 2 bookings used. Your 2nd booking must be within 2 hours of your first.</div>`;
+  }
+
+  let gridHtml = '';
+  Object.entries(byHour).forEach(([h, hourSlots]) => {
+    const hNum = parseInt(h);
+    const hLabel = `${hNum > 12 ? hNum-12 : (hNum===0?12:hNum)} ${hNum >= 12 ? 'PM' : 'AM'}`;
+    gridHtml += `<div class="hour-group"><div class="hour-label">${hLabel}</div><div class="slot-row">`;
+    hourSlots.forEach(s => {
+      const status   = slotStatus(s.start, S.takenSlots, S.myDayBookings);
+      const timeLabel = `${s.start.slice(3,5)}–${s.end.slice(3,5)}`;
+      if (status === 'mine') {
+        const bk = S.myDayBookings.find(b => b.slot_start.slice(0,5) === s.start);
+        gridHtml += `<button class="slot-btn mine" onclick="cancelSlot('${bk?.id}','${s.start}')" title="Tap to cancel">${timeLabel}<br>✓ Booked</button>`;
+      } else if (status === 'taken') {
+        gridHtml += `<button class="slot-btn taken" disabled>${timeLabel}<br>Taken</button>`;
+      } else if (status === 'locked') {
+        const reason = myCount >= CONFIG.MAX_PER_DAY ? 'Limit' : '±2hr';
+        gridHtml += `<button class="slot-btn locked" disabled>${timeLabel}<br>${reason}</button>`;
+      } else {
+        gridHtml += `<button class="slot-btn" onclick="bookSlot('${s.start}','${s.end}',this)">${timeLabel}</button>`;
+      }
+    });
+    gridHtml += '</div></div>';
+  });
+
+  document.getElementById('slotPanel').innerHTML =
+    `<div class="slot-day-hdr">${dateLabel}</div>` +
+    legendHtml + limitNote +
+    `<div class="slot-scroller">${gridHtml}</div>`;
+}
+
+/* ── BOOK ──────────────────────────────────────────────────── */
+async function bookSlot(slotStart, slotEnd, btn) {
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const payload = {
+      member_id:    S.user.id,
+      member_email: S.user.email,
+      member_name:  S.user.user_metadata?.full_name || S.user.email,
+      booking_date: S.selectedDate,
+      slot_start:   slotStart,
+      slot_end:     slotEnd,
+      status:       'confirmed',
+    };
+    const [result] = await sbPost('/rest/v1/member_bookings', payload);
+    notifyWebhook({ ...payload, booking_id: result.id, event: 'member_booking_created' });
+    showToast('Slot booked!', 'success');
+    await selectDate(S.selectedDate);
+    loadUpcoming();
+  } catch (ex) {
+    let msg = 'Booking failed — please try again.';
+    if (ex.message.includes('unique') || ex.message.includes('23505')) {
+      msg = 'That slot was just taken. Try another.';
+    }
+    showToast(msg, 'error');
+    btn.disabled = false;
+    renderSlots();
+  }
+}
+
+/* ── CANCEL (from slot grid) ───────────────────────────────── */
+async function cancelSlot(id, slotStart) {
+  if (!id || !confirm('Cancel this booking?')) return;
+  try {
+    await sbPatch(`/rest/v1/member_bookings?id=eq.${id}&member_id=eq.${S.user.id}`, { status: 'cancelled' });
+    notifyWebhook({ booking_id: id, member_email: S.user.email, member_name: S.user.user_metadata?.full_name || S.user.email, booking_date: S.selectedDate, slot_start: slotStart, event: 'member_booking_cancelled' });
+    showToast('Booking cancelled', 'success');
+    await selectDate(S.selectedDate);
+    loadUpcoming();
+  } catch { showToast('Cancel failed', 'error'); }
+}
+
+/* ── UPCOMING BOOKINGS ─────────────────────────────────────── */
+async function loadUpcoming() {
+  const today = isoDate(new Date());
+  try {
+    const rows = await sbGet(
+      `/rest/v1/member_bookings?member_id=eq.${S.user.id}&status=eq.confirmed&booking_date=gte.${today}&select=id,booking_date,slot_start,slot_end&order=booking_date.asc,slot_start.asc`
+    );
+    S.upcoming = rows;
+    renderUpcoming();
+  } catch {}
+}
+
+function renderUpcoming() {
+  const el = document.getElementById('upcomingPanel');
+  if (!S.upcoming.length) {
+    el.innerHTML = '<div class="no-bookings">No upcoming bookings</div>';
+    return;
+  }
+  el.innerHTML = '<div class="upcoming-list">' + S.upcoming.map(b => {
+    const d = new Date(b.booking_date + 'T00:00:00');
+    const dl = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    return `<div class="bk-item">
+      <div>
+        <div class="bk-date">${dl}</div>
+        <div class="bk-slot">${fmt12(b.slot_start.slice(0,5))} – ${fmt12(b.slot_end.slice(0,5))}</div>
+      </div>
+      <button class="btn-cancel-sm" onclick="cancelFromList('${b.id}','${b.booking_date}','${b.slot_start.slice(0,5)}')">Cancel</button>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function cancelFromList(id, date, slotStart) {
+  if (!confirm('Cancel this booking?')) return;
+  try {
+    await sbPatch(`/rest/v1/member_bookings?id=eq.${id}&member_id=eq.${S.user.id}`, { status: 'cancelled' });
+    notifyWebhook({ booking_id: id, member_email: S.user.email, member_name: S.user.user_metadata?.full_name || S.user.email, booking_date: date, slot_start: slotStart, event: 'member_booking_cancelled' });
+    showToast('Booking cancelled', 'success');
+    if (S.selectedDate === date) await selectDate(date);
+    loadUpcoming();
+  } catch { showToast('Cancel failed', 'error'); }
+}
+
+/* ── WEBHOOK ───────────────────────────────────────────────── */
+function notifyWebhook(payload) {
+  fetch(CONFIG.NOTIFY_URL, {
+    method:  'POST',
+    headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${S.token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+/* ── TOAST ─────────────────────────────────────────────────── */
+let _toastTimer;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ` ${type}` : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+/* ── BOOT ──────────────────────────────────────────────────── */
+(async () => {
+  if (await tryRestoreSession()) startApp();
+})();
+</script>
+</body>
+</html>

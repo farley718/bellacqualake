@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bell Acqua Lake — Staff Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy-dark:#0d2137; --navy:#1a4a6e; --blue:#2e9cca; --blue-light:#e3f4fb;
+      --gold:#f4a61d; --gold-light:#fff8e8; --bg:#f0f7fc; --white:#ffffff;
+      --red:#e74c3c; --red-light:#fdf0ef; --green:#27ae60; --green-light:#e8f8ef;
+      --gray:#6b7280; --gray-light:#f3f4f6; --border:#d1e3ee;
+      --shadow:0 4px 24px rgba(13,33,55,0.10); --shadow-md:0 8px 32px rgba(13,33,55,0.15);
+      --radius:12px; --radius-sm:8px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--navy-dark);min-height:100vh;}
+
+    /* ── PIN ── */
+    #pinGate{position:fixed;inset:0;background:var(--navy-dark);display:flex;align-items:center;justify-content:center;z-index:9999;}
+    .pin-box{background:white;border-radius:16px;padding:40px 36px;width:100%;max-width:360px;text-align:center;box-shadow:var(--shadow-md);}
+    .pin-logo{width:90px;height:90px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;}
+    .pin-logo img{width:90px;height:90px;object-fit:contain;}
+    .pin-title{font-family:'Montserrat',sans-serif;font-size:1.25rem;font-weight:800;color:var(--navy-dark);margin-bottom:4px;}
+    .pin-sub{font-size:0.82rem;color:var(--gray);margin-bottom:24px;}
+    .pin-input{width:100%;padding:14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:1.4rem;text-align:center;letter-spacing:8px;font-weight:700;outline:none;margin-bottom:16px;transition:border-color .2s;}
+    .pin-input:focus{border-color:var(--blue);}
+    .pin-input.pin-error{border-color:var(--red);animation:shake .3s;}
+    .pin-btn{width:100%;padding:13px;background:var(--navy-dark);color:white;border:none;border-radius:var(--radius-sm);font-size:.95rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:background .2s;}
+    .pin-btn:hover{background:var(--navy);}
+    .pin-error-msg{font-size:.8rem;color:var(--red);margin-top:8px;min-height:18px;}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+    /* ── Header ── */
+    .staff-header{background:var(--navy-dark);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-md);position:sticky;top:0;z-index:100;}
+    .hdr-left{display:flex;align-items:center;gap:14px;}
+    .hdr-logo{width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+    .hdr-logo img{width:42px;height:42px;object-fit:contain;}
+    .hdr-title{font-family:'Montserrat',sans-serif;font-size:1.05rem;font-weight:800;color:white;}
+    .hdr-badge{background:var(--gold);color:var(--navy-dark);font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.8px;}
+    .hdr-right{display:flex;align-items:center;gap:12px;}
+    .hdr-clock{color:#93c5fd;font-size:.82rem;font-family:monospace;}
+    .hdr-btn{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:white;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif;font-weight:500;transition:background .2s;display:flex;align-items:center;gap:6px;}
+    .hdr-btn:hover{background:rgba(255,255,255,.20);}
+    .hdr-btn.refreshing{opacity:.6;pointer-events:none;}
+    .spin{display:inline-block;animation:spin 1s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Tabs ── */
+    .tab-bar{display:flex;gap:0;background:white;border-bottom:2px solid var(--border);padding:0 24px;overflow-x:auto;}
+    .tab-btn{padding:14px 22px;font-size:.875rem;font-weight:600;color:var(--gray);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s;font-family:'Inter',sans-serif;}
+    .tab-btn:hover{color:var(--navy);}
+    .tab-btn.active{color:var(--navy-dark);border-bottom-color:var(--blue);}
+    .tab-content{display:none;}
+    .tab-content.active{display:block;}
+
+    /* ── Layout ── */
+    .dashboard{max-width:1280px;margin:0 auto;padding:20px 16px 48px;}
+
+    /* ── Stats ── */
+    .stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+    @media(max-width:720px){.stats-strip{grid-template-columns:repeat(2,1fr);}}
+    .stat-card{background:white;border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);border-left:4px solid transparent;}
+    .stat-card.blue{border-left-color:var(--blue);} .stat-card.green{border-left-color:var(--green);}
+    .stat-card.gold{border-left-color:var(--gold);}  .stat-card.red{border-left-color:var(--red);}
+    .stat-label{font-size:.72rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+    .stat-value{font-family:'Montserrat',sans-serif;font-size:1.8rem;font-weight:800;color:var(--navy-dark);line-height:1;}
+    .stat-sub{font-size:.75rem;color:var(--gray);margin-top:4px;}
+
+    /* ── Calendar Panel ── */
+    .main-grid{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;}
+    @media(max-width:900px){.main-grid{grid-template-columns:1fr;}}
+    .cal-panel{background:white;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+    .cal-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--navy-dark);}
+    .cal-month{font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:700;color:white;}
+    .cal-nav-btn{background:rgba(255,255,255,.12);border:none;color:white;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:background .2s;}
+    .cal-nav-btn:hover{background:rgba(255,255,255,.25);}
+    .cal-today-btn{background:var(--gold);border:none;color:var(--navy-dark);padding:4px 12px;border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+    .cal-grid{padding:12px 14px 16px;}
+    .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px;}
+    .cal-dow-cell{text-align:center;font-size:.65rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;padding:4px 0;}
+    .cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+    .cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;position:relative;transition:all .15s;font-size:.82rem;}
+    .cal-cell:hover:not(.empty){background:var(--blue-light);}
+    .cal-cell.empty{cursor:default;}
+    .cal-cell.cal-past{color:#c4cdd6;}
+    .cal-cell.cal-today{background:var(--navy);color:white;font-weight:700;}
+    .cal-cell.cal-selected{background:var(--blue);color:white;font-weight:700;box-shadow:0 2px 8px rgba(46,156,202,.4);}
+    .cal-cell.cal-blocked{background:#fdf0ef;color:#e08080;cursor:pointer;}
+    .cal-cell.cal-blocked:hover{background:#fbe4e2;}
+    .cal-day-num{font-weight:600;line-height:1;}
+    .cal-dot-wrap{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;justify-content:center;max-width:28px;}
+    .cal-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+    .cal-dot.confirmed{background:var(--green);} .cal-dot.pending{background:var(--gold);} .cal-dot.blocked{background:var(--red);}
+    .cal-count-badge{position:absolute;top:2px;right:2px;background:var(--blue);color:white;font-size:.58rem;font-weight:700;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+    .cal-blocked-icon{font-size:.65rem;margin-top:1px;}
+
+    /* ── Upcoming ── */
+    .upcoming-wrap{padding:0 14px 14px;border-top:1px solid var(--border);}
+    .upcoming-title{font-size:.7rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.8px;padding:12px 0 8px;}
+    .upcoming-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s;margin-bottom:3px;}
+    .upcoming-item:hover,.upcoming-item.active{background:var(--blue-light);}
+    .upcoming-date-box{width:38px;height:38px;background:var(--navy-dark);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+    .upcoming-date-box .umon{font-size:.55rem;color:#93c5fd;text-transform:uppercase;font-weight:600;}
+    .upcoming-date-box .uday{font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:white;line-height:1;}
+    .upcoming-info{flex:1;min-width:0;}
+    .upcoming-count{font-size:.8rem;font-weight:600;color:var(--navy-dark);}
+    .upcoming-guests{font-size:.72rem;color:var(--gray);}
+
+    /* ── Day Panel ── */
+    .day-panel{background:white;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+    .day-header{padding:16px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+    .day-title{font-family:'Montserrat',sans-serif;font-size:1.1rem;font-weight:800;color:var(--navy-dark);}
+    .day-sub{font-size:.8rem;color:var(--gray);margin-top:2px;}
+    .slot-occupancy{display:flex;align-items:center;gap:10px;}
+    .occ-bar-wrap{width:100px;height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden;}
+    .occ-bar{height:100%;border-radius:4px;background:var(--blue);transition:width .4s;}
+    .occ-bar.full{background:var(--red);} .occ-bar.busy{background:var(--gold);}
+    .occ-text{font-size:.78rem;color:var(--gray);white-space:nowrap;}
+    .block-btn{padding:7px 16px;border:none;border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;}
+    .block-btn.block{background:#fdf0ef;color:var(--red);border:1.5px solid #f5c6c0;}
+    .block-btn.block:hover{background:#fbe4e2;}
+    .block-btn.open{background:var(--green-light);color:var(--green);border:1.5px solid #a8dfc0;}
+    .block-btn.open:hover{background:#d4f3e3;}
+
+    /* ── Timeline ── */
+    .timeline-wrap{padding:16px 24px;border-bottom:1px solid var(--border);}
+    .timeline-title{font-size:.7rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+    .timeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;}
+    .tl-slot{padding:7px 6px;border-radius:8px;text-align:center;font-size:.72rem;border:1.5px solid var(--border);position:relative;transition:all .15s;}
+    .tl-slot.tl-free{background:var(--green-light);border-color:#a8dfc0;color:var(--green);}
+    .tl-slot.tl-booked{background:var(--navy-dark);border-color:var(--navy-dark);color:white;cursor:pointer;}
+    .tl-slot.tl-booked:hover{background:var(--navy);}
+    .tl-slot.tl-past{background:var(--gray-light);color:#c4cdd6;border-color:#e5e7eb;}
+    .tl-slot.tl-slot-blocked{background:#fff3cd;border-color:#ffc107;color:#856404;cursor:pointer;}
+    .tl-slot.tl-slot-blocked:hover{background:#ffe69c;}
+    .tl-time{font-weight:700;display:block;margin-bottom:2px;}
+    .tl-name{font-size:.65rem;line-height:1.2;opacity:.85;}
+    .tl-count{font-size:.6rem;background:rgba(255,255,255,.2);border-radius:4px;padding:1px 4px;margin-top:3px;display:inline-block;}
+
+    /* ── Booking Cards ── */
+    .bookings-wrap{padding:16px 24px;}
+    .bookings-title{font-size:.7rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+    .booking-card{border:1.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;overflow:hidden;transition:box-shadow .15s;}
+    .booking-card:hover{box-shadow:0 4px 16px rgba(13,33,55,.08);}
+    .booking-card-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--gray-light);cursor:pointer;gap:10px;flex-wrap:wrap;}
+    .bk-ref{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--navy);}
+    .bk-name{font-weight:600;font-size:.9rem;color:var(--navy-dark);}
+    .bk-meta{font-size:.75rem;color:var(--gray);margin-top:1px;}
+    .bk-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .status-badge{font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+    .sb-confirmed{background:var(--green-light);color:var(--green);}
+    .sb-pending{background:var(--gold-light);color:#92600a;}
+    .sb-cancelled{background:var(--red-light);color:var(--red);}
+    .bk-amount{font-family:'Montserrat',sans-serif;font-weight:700;color:var(--navy-dark);font-size:.9rem;}
+    .chevron{font-size:.7rem;color:var(--gray);transition:transform .2s;}
+    .chevron.open{transform:rotate(180deg);}
+    .booking-card-body{padding:14px 16px;display:none;}
+    .booking-card-body.open{display:block;}
+    .bk-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;}
+    @media(max-width:560px){.bk-details-grid{grid-template-columns:1fr;}}
+    .bk-field label{font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:2px;}
+    .bk-field span{font-size:.85rem;color:var(--navy-dark);}
+    .bk-field a{color:var(--blue);text-decoration:none;font-size:.85rem;}
+    .bk-field a:hover{text-decoration:underline;}
+    .bk-slot-chip{display:inline-flex;align-items:center;gap:4px;background:var(--blue-light);border:1px solid #b3ddf0;color:var(--navy);font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:20px;margin:2px;}
+    .waiver-guest-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:6px;background:var(--gray-light);margin-bottom:4px;font-size:.8rem;}
+    .waiver-badge{font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;}
+    .wb-signed{background:var(--green-light);color:var(--green);}
+    .wb-pending{background:var(--gold-light);color:#92600a;}
+
+    /* ── Filter bar ── */
+    .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--border);background:var(--gray-light);}
+    .filter-chip{padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--gray);transition:all .15s;}
+    .filter-chip.active{background:var(--navy-dark);color:white;border-color:var(--navy-dark);}
+    .filter-chip:hover:not(.active){border-color:var(--blue);color:var(--blue);}
+    .filter-label{font-size:.72rem;color:var(--gray);font-weight:600;margin-right:2px;}
+    .search-input-wrap{margin-left:auto;position:relative;}
+    .search-input{padding:5px 10px 5px 28px;border:1.5px solid var(--border);border-radius:20px;font-size:.78rem;font-family:'Inter',sans-serif;outline:none;background:white;width:180px;transition:border-color .2s,width .2s;}
+    .search-input:focus{border-color:var(--blue);width:220px;}
+    .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:.75rem;color:var(--gray);pointer-events:none;}
+
+    /* ── Customers Tab ── */
+    .customers-wrap{padding:20px;}
+    .customers-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+    .customers-toolbar .search-input{width:240px;}
+    .customers-table-wrap{background:white;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+    .customers-table{width:100%;border-collapse:collapse;font-size:.82rem;}
+    .customers-table th{background:var(--navy-dark);color:white;padding:10px 14px;text-align:left;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
+    .customers-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+    .customers-table tr:last-child td{border-bottom:none;}
+    .customers-table tr:hover td{background:var(--blue-light);}
+    .customers-table a{color:var(--blue);text-decoration:none;}
+    .customers-table a:hover{text-decoration:underline;}
+    .cust-name{font-weight:600;color:var(--navy-dark);}
+    .cust-ref{font-family:monospace;font-size:.78rem;color:var(--navy);}
+    .slot-tag{display:inline-block;background:var(--blue-light);color:var(--navy);font-size:.68rem;padding:2px 7px;border-radius:12px;margin:1px;border:1px solid #b3ddf0;}
+    .empty-state{text-align:center;padding:48px 24px;color:var(--gray);}
+    .empty-state-icon{font-size:2.5rem;margin-bottom:10px;}
+
+    /* ── Coupons Tab ── */
+    .coupons-wrap{padding:20px;}
+    .coupons-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+    .btn-primary{padding:9px 20px;background:var(--navy-dark);color:white;border:none;border-radius:var(--radius-sm);font-size:.85rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:background .2s;}
+    .btn-primary:hover{background:var(--navy);}
+    .btn-danger-sm{padding:5px 10px;background:var(--red-light);color:var(--red);border:1.5px solid #f5c6c0;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+    .btn-danger-sm:hover{background:#fbe4e2;}
+    .btn-outline-sm{padding:5px 10px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+    .btn-outline-sm:hover{border-color:var(--blue);color:var(--blue);}
+
+    /* Add coupon form */
+    .coupon-add-form{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 24px;margin-bottom:20px;border:2px solid var(--blue-light);}
+    .coupon-form-title{font-family:'Montserrat',sans-serif;font-size:.95rem;font-weight:700;color:var(--navy-dark);margin-bottom:16px;}
+    .coupon-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px;}
+    .form-field label{font-size:.72rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;}
+    .form-field input,.form-field select{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;}
+    .form-field input:focus,.form-field select:focus{border-color:var(--blue);}
+    .coupon-form-actions{display:flex;gap:10px;}
+
+    /* Coupon cards */
+    .coupons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+    .coupon-card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;border-left:4px solid var(--blue);transition:box-shadow .15s;}
+    .coupon-card:hover{box-shadow:var(--shadow-md);}
+    .coupon-card.inactive{border-left-color:var(--gray);opacity:.7;}
+    .coupon-code{font-family:monospace;font-size:1.1rem;font-weight:800;color:var(--navy-dark);letter-spacing:1px;margin-bottom:8px;}
+    .coupon-value{font-size:1.4rem;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--green);}
+    .coupon-meta{font-size:.78rem;color:var(--gray);margin-top:6px;line-height:1.7;}
+    .coupon-actions{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;}
+    .toggle-badge{font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;border:none;font-family:'Inter',sans-serif;}
+    .toggle-badge.active-badge{background:var(--green-light);color:var(--green);}
+    .toggle-badge.inactive-badge{background:var(--gray-light);color:var(--gray);}
+
+    /* ── Modal ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(13,33,55,.55);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(2px);}
+    .modal-box{background:white;border-radius:var(--radius);padding:28px;max-width:420px;width:90%;box-shadow:var(--shadow-md);}
+    .modal-box.modal-wide{max-width:560px;}
+    .modal-title{font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:700;color:var(--navy-dark);margin-bottom:12px;}
+    .modal-body{font-size:.875rem;color:var(--navy);margin-bottom:20px;line-height:1.7;}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+    .modal-btn{padding:9px 20px;border:none;border-radius:var(--radius-sm);font-size:.85rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+    .modal-btn.cancel{background:var(--gray-light);color:var(--navy);}
+    .modal-btn.confirm{background:var(--navy-dark);color:white;}
+    .modal-btn.danger{background:var(--red);color:white;}
+
+    /* Slot picker in modal */
+    .slot-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;}
+    @media(max-width:480px){.slot-picker{grid-template-columns:repeat(3,1fr);}}
+    .sp-slot{padding:8px 6px;border:2px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:.72rem;font-weight:600;transition:all .15s;user-select:none;}
+    .sp-slot.sp-free{background:var(--green-light);border-color:#a8dfc0;color:var(--green);}
+    .sp-slot.sp-free.sp-selected{background:#c8f0d8;border-color:var(--green);color:var(--green);}
+    .sp-slot.sp-booked{background:var(--gray-light);color:#c4cdd6;border-color:#e5e7eb;cursor:not-allowed;}
+    .sp-slot.sp-blocked{background:#fff3cd;border-color:#ffc107;color:#856404;}
+    .sp-slot.sp-blocked.sp-selected{background:#ffe69c;border-color:#e6ac00;color:#705200;}
+    .sp-slot:not(.sp-booked):hover{opacity:.85;}
+
+    /* ── Misc ── */
+    .loading-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--gray);font-size:.9rem;}
+    .loading-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;flex-shrink:0;}
+    .day-placeholder{padding:60px 24px;text-align:center;}
+    .day-placeholder-icon{font-size:3rem;margin-bottom:12px;}
+    .day-placeholder-title{font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:700;color:var(--navy);margin-bottom:6px;}
+    .day-placeholder-sub{font-size:.82rem;color:var(--gray);}
+    .blocked-day-panel{padding:24px;text-align:center;}
+    .blocked-banner{background:#fdf0ef;border:2px solid #f5c6c0;border-radius:var(--radius);padding:24px;margin:0 24px 24px;}
+    .info-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--gray);padding:2px 0;}
+    @media(max-width:600px){.staff-header{padding:10px 14px;}.hdr-clock{display:none;}.dashboard{padding:12px 10px 40px;}}
+  </style>
+</head>
+<body>
+
+<!-- PIN Gate -->
+<div id="pinGate">
+  <div class="pin-box">
+    <div class="pin-logo"><img src="bell-acqua-logo.png" alt="Bell Acqua Lake"></div>
+    <div class="pin-title">Bell Acqua Lake</div>
+    <div class="pin-sub">Staff Dashboard — Enter your PIN</div>
+    <input type="password" id="pinInput" class="pin-input" maxlength="6" placeholder="••••"
+      oninput="this.classList.remove('pin-error')"
+      onkeydown="if(event.key==='Enter') Dashboard.checkPin()" />
+    <button class="pin-btn" onclick="Dashboard.checkPin()">Enter Dashboard →</button>
+    <div class="pin-error-msg" id="pinErrorMsg"></div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="staff-header">
+  <div class="hdr-left">
+    <div class="hdr-logo"><img src="bell-acqua-logo.png" alt="Bell Acqua Lake"></div>
+    <div><div class="hdr-title">Bell Acqua Lake <span class="hdr-badge">Staff</span></div></div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-clock" id="liveClock">—</div>
+    <button class="hdr-btn" id="refreshBtn" onclick="Dashboard.refresh()">
+      <span id="refreshIcon">↻</span> Refresh
+    </button>
+  </div>
+</header>
+
+<!-- Tab Bar -->
+<div class="tab-bar" id="tabBar" style="display:none;">
+  <button class="tab-btn active" onclick="Dashboard.setTab('calendar')">📅 Calendar</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('customers')">👥 Customers</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('coupons')">🎟️ Coupons</button>
+</div>
+
+<!-- Dashboard -->
+<div id="mainDashboard" style="display:none;">
+
+  <!-- Stats Strip -->
+  <div class="dashboard">
+    <div class="stats-strip">
+      <div class="stat-card blue"><div class="stat-label">Today's Bookings</div><div class="stat-value" id="statTodayBookings">—</div><div class="stat-sub" id="statTodaySub">—</div></div>
+      <div class="stat-card green"><div class="stat-label">Today's Guests</div><div class="stat-value" id="statTodayGuests">—</div><div class="stat-sub">on the water today</div></div>
+      <div class="stat-card gold"><div class="stat-label">Today's Revenue</div><div class="stat-value" id="statRevenue">—</div><div class="stat-sub">confirmed bookings</div></div>
+      <div class="stat-card red"><div class="stat-label">Pending Waivers</div><div class="stat-value" id="statPendingWaivers">—</div><div class="stat-sub" id="statWaiverSub">—</div></div>
+    </div>
+  </div>
+
+  <!-- ─── Calendar Tab ─── -->
+  <div class="tab-content active" id="tab-calendar">
+    <div class="dashboard" style="padding-top:0;">
+      <div class="main-grid">
+        <!-- Calendar Panel -->
+        <div class="cal-panel">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="Dashboard.prevMonth()">‹</button>
+            <div style="text-align:center;"><div class="cal-month" id="calMonthLabel">—</div></div>
+            <button class="cal-nav-btn" onclick="Dashboard.nextMonth()">›</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;padding:8px 14px 4px;gap:8px;">
+            <button class="cal-today-btn" onclick="Dashboard.goToday()">Today</button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-dow">
+              <div class="cal-dow-cell">Su</div><div class="cal-dow-cell">Mo</div>
+              <div class="cal-dow-cell">Tu</div><div class="cal-dow-cell">We</div>
+              <div class="cal-dow-cell">Th</div><div class="cal-dow-cell">Fr</div>
+              <div class="cal-dow-cell">Sa</div>
+            </div>
+            <div class="cal-days" id="calDays">
+              <div class="loading-row" style="grid-column:1/-1;padding:24px;"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+          <div class="upcoming-wrap">
+            <div class="upcoming-title">Upcoming Booked Days</div>
+            <div id="upcomingList"><div style="font-size:.78rem;color:var(--gray);padding:8px 0;">Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- Day Detail Panel -->
+        <div class="day-panel" id="dayPanel">
+          <div class="day-placeholder">
+            <div class="day-placeholder-icon">📅</div>
+            <div class="day-placeholder-title">Select a date</div>
+            <div class="day-placeholder-sub">Click any date on the calendar to view bookings, block/open dates, and manage slots.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Customers Tab ─── -->
+  <div class="tab-content" id="tab-customers">
+    <div class="customers-wrap">
+      <div class="customers-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">All Customers</div>
+        <div class="search-input-wrap" style="margin-left:0;">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="custSearch" placeholder="Name, email, ref, phone…"
+            oninput="Dashboard.renderCustomers()" style="width:260px;" />
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="filter-chip active" id="custFilterAll" onclick="Dashboard.setCustFilter('all')">All</div>
+          <div class="filter-chip" id="custFilterConfirmed" onclick="Dashboard.setCustFilter('confirmed')">✅ Confirmed</div>
+          <div class="filter-chip" id="custFilterPending" onclick="Dashboard.setCustFilter('pending_waivers')">⏳ Pending</div>
+          <div class="filter-chip" id="custFilterCancelled" onclick="Dashboard.setCustFilter('cancelled')">✕ Cancelled</div>
+        </div>
+      </div>
+      <div class="customers-table-wrap">
+        <div id="customersTableContainer">
+          <div class="loading-row"><div class="loading-spinner"></div> Loading customers…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Coupons Tab ─── -->
+  <div class="tab-content" id="tab-coupons">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Coupon Codes</div>
+        <button class="btn-primary" onclick="Dashboard.toggleAddCouponForm()">+ Add Coupon</button>
+      </div>
+
+      <!-- Add Coupon Form -->
+      <div class="coupon-add-form" id="addCouponForm" style="display:none;">
+        <div class="coupon-form-title">Create New Coupon</div>
+        <div class="coupon-form-grid">
+          <div class="form-field">
+            <label>Code *</label>
+            <input type="text" id="cfCode" placeholder="SUMMER25" oninput="this.value=this.value.toUpperCase()" maxlength="30" />
+          </div>
+          <div class="form-field">
+            <label>Discount Type *</label>
+            <select id="cfType" onchange="Dashboard._onCouponTypeChange()">
+              <option value="percent">Percentage (%)</option>
+              <option value="fixed">Fixed Amount ($)</option>
+              <option value="buy2get1">Buy 2 Get 1 Free (3 slots required · once per email)</option>
+            </select>
+          </div>
+          <div class="form-field" id="cfValueWrap">
+            <label>Value *</label>
+            <input type="number" id="cfValue" placeholder="e.g. 20" min="1" step="0.01" />
+          </div>
+          <div class="form-field">
+            <label>Max Uses (blank = unlimited)</label>
+            <input type="number" id="cfMaxUses" placeholder="e.g. 50" min="1" />
+          </div>
+          <div class="form-field">
+            <label>Expiry Date (optional)</label>
+            <input type="date" id="cfExpiry" />
+          </div>
+          <div class="form-field">
+            <label>Description (optional)</label>
+            <input type="text" id="cfDesc" placeholder="e.g. Summer promo" maxlength="80" />
+          </div>
+        </div>
+        <div class="coupon-form-actions">
+          <button class="btn-primary" onclick="Dashboard.saveCoupon()">Save Coupon</button>
+          <button class="btn-outline-sm" style="padding:9px 16px;" onclick="Dashboard.toggleAddCouponForm()">Cancel</button>
+        </div>
+        <div id="couponFormError" style="margin-top:8px;font-size:.82rem;color:var(--red);min-height:18px;"></div>
+      </div>
+
+      <!-- Coupon Cards -->
+      <div class="coupons-grid" id="couponsGrid">
+        <div class="loading-row" style="grid-column:1/-1;"><div class="loading-spinner"></div> Loading coupons…</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /mainDashboard -->
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" style="display:none;" onclick="if(event.target===this)Dashboard.closeModal()">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-title" id="modalTitle">Confirm</div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions">
+      <button class="modal-btn cancel" onclick="Dashboard.closeModal()">Cancel</button>
+      <button class="modal-btn" id="modalConfirmBtn" onclick="Dashboard.confirmModal()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ──────────────────────────────────────────────────────────────
+   CONFIG
+   ────────────────────────────────────────────────────────────── */
+const CONFIG = {
+  STAFF_PIN:         '2626',
+  SUPABASE_URL:      'https://euznpkrkkaieykznztho.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
+  SLOT_START: 7, SLOT_END: 20, SLOT_PRICE: 148.50,
+};
+
+/* ──────────────────────────────────────────────────────────────
+   STATE
+   ────────────────────────────────────────────────────────────── */
+const DS = {
+  bookings:       [],
+  waivers:        [],
+  blockedDates:   {},  // dateKey → { date, reason }
+  blockedSlots:   {},  // dateKey → Set<slotId>  (individual slot blocks)
+  coupons:        [],
+  bookingsByDate: {},
+  viewYear:       new Date().getFullYear(),
+  viewMonth:      new Date().getMonth(),
+  selectedDate:   null,
+  filterStatus:   'all',
+  searchQuery:    '',
+  custFilter:     'all',
+  activeTab:      'calendar',
+  modalCallback:  null,
+};
+
+/* ──────────────────────────────────────────────────────────────
+   HELPERS
+   ────────────────────────────────────────────────────────────── */
+function dk(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayKey(){ return dk(new Date()); }
+function fmtDate(key){
+  const [y,m,d]=key.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+function generateTimeSlots(){
+  const slots=[];
+  const fmt=(h,m)=>{const h12=h%12||12;const ap=h>=12?'PM':'AM';return `${h12}:${String(m).padStart(2,'0')} ${ap}`;};
+  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++) slots.push({id:`${String(h).padStart(2,'0')}00`,label:fmt(h,0),hour:h});
+  return slots;
+}
+function sbH(extra){
+  return Object.assign({'apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},extra||{});
+}
+function statusBadge(s){
+  const m={confirmed:['sb-confirmed','✅ Confirmed'],pending_waivers:['sb-pending','⏳ Pending Waivers'],cancelled:['sb-cancelled','✕ Cancelled']};
+  const [cls,lbl]=m[s]||['sb-pending',s];
+  return `<span class="status-badge ${cls}">${lbl}</span>`;
+}
+function waiverBadge(s){
+  if(s==='signed') return `<span class="waiver-badge wb-signed">✅ Signed</span>`;
+  return `<span class="waiver-badge wb-pending">⏳ Pending</span>`;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DATA
+   ────────────────────────────────────────────────────────────── */
+async function fetchAll(){
+  const [bRes,wRes,blRes,bsRes,cpRes] = await Promise.all([
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?select=id,first_name,last_name,email,phone,party_size,total_amount,status,slots,booking_type,created_at&order=created_at.desc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?select=id,booking_id,guest_name,guest_email,status,signed_at,waiver_ref&order=guest_index.asc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date,reason,blocked_by,created_at`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?select=id,date,slot_id,reason`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?select=*&order=created_at.desc`,{headers:sbH()}),
+  ]);
+  DS.bookings     = bRes.ok  ? await bRes.json()  : [];
+  DS.waivers      = wRes.ok  ? await wRes.json()  : [];
+  DS.coupons      = cpRes.ok ? await cpRes.json() : [];
+
+  DS.blockedDates = {};
+  if(blRes.ok){
+    const rows = await blRes.json();
+    rows.forEach(r=>{ DS.blockedDates[r.date]=r; });
+  }
+
+  // Individual slot blocks
+  DS.blockedSlots = {};
+  if(bsRes.ok){
+    const rows = await bsRes.json();
+    rows.forEach(r=>{
+      if(!DS.blockedSlots[r.date]) DS.blockedSlots[r.date]={};
+      DS.blockedSlots[r.date][r.slot_id]=r; // store full row so we have the id for deletion
+    });
+  }
+
+  DS.bookingsByDate = {};
+  DS.bookings.filter(b=>b.status!=='cancelled').forEach(b=>{
+    const dates=[...new Set((b.slots||[]).map(s=>s.date).filter(Boolean))];
+    dates.forEach(d=>{
+      if(!DS.bookingsByDate[d]) DS.bookingsByDate[d]=[];
+      if(!DS.bookingsByDate[d].find(x=>x.id===b.id)) DS.bookingsByDate[d].push(b);
+    });
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   STATS
+   ────────────────────────────────────────────────────────────── */
+function renderStats(){
+  const today=todayKey();
+  const todayBk=DS.bookingsByDate[today]||[];
+  const guests=todayBk.reduce((s,b)=>s+(b.party_size||1),0);
+  const revenue=todayBk.filter(b=>b.status==='confirmed').reduce((s,b)=>s+parseFloat(b.total_amount||0),0);
+  const pendingW=DS.waivers.filter(w=>w.status==='pending').length;
+  document.getElementById('statTodayBookings').textContent=todayBk.length;
+  document.getElementById('statTodaySub').textContent=`${todayBk.length===1?'1 booking':''+todayBk.length+' bookings'} today`;
+  document.getElementById('statTodayGuests').textContent=guests;
+  document.getElementById('statRevenue').textContent=`$${revenue.toFixed(0)}`;
+  document.getElementById('statPendingWaivers').textContent=pendingW;
+  document.getElementById('statWaiverSub').textContent=pendingW===1?'guest needs to sign':'guests need to sign';
+}
+
+/* ──────────────────────────────────────────────────────────────
+   CALENDAR
+   ────────────────────────────────────────────────────────────── */
+function renderCalendar(){
+  const y=DS.viewYear,m=DS.viewMonth;
+  document.getElementById('calMonthLabel').textContent=new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const firstDay=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const today=new Date();today.setHours(0,0,0,0);
+  let html='';
+  for(let i=0;i<firstDay;i++) html+=`<div class="cal-cell empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const cd=new Date(y,m,d);cd.setHours(0,0,0,0);
+    const key=dk(cd);
+    const bks=DS.bookingsByDate[key]||[];
+    const isBlocked=!!DS.blockedDates[key];
+    const isPast=cd<today;
+    const isToday=cd.getTime()===today.getTime();
+    const isSel=DS.selectedDate===key;
+    let cls='cal-cell';
+    if(isBlocked) cls+=' cal-blocked';
+    else if(isPast&&!isToday) cls+=' cal-past';
+    if(isToday) cls+=' cal-today';
+    if(isSel) cls+=' cal-selected';
+    let inner=`<span class="cal-day-num">${d}</span>`;
+    if(isBlocked){
+      inner+=`<div class="cal-blocked-icon">🚫</div>`;
+    } else if(bks.length>0){
+      const conf=bks.filter(b=>b.status==='confirmed').length;
+      const pend=bks.filter(b=>b.status==='pending_waivers').length;
+      let dots='';
+      for(let i=0;i<Math.min(conf,3);i++) dots+=`<div class="cal-dot confirmed"></div>`;
+      for(let i=0;i<Math.min(pend,3-Math.min(conf,3));i++) dots+=`<div class="cal-dot pending"></div>`;
+      inner+=`<div class="cal-dot-wrap">${dots}</div>`;
+      if(bks.length>3) inner+=`<div class="cal-count-badge">${bks.length}</div>`;
+    }
+    html+=`<div class="${cls}" onclick="Dashboard.selectDate('${key}')" title="${key}${isBlocked?' · BLOCKED':''}${bks.length?' · '+bks.length+' booking(s)':''}">${inner}</div>`;
+  }
+  document.getElementById('calDays').innerHTML=html;
+  renderUpcoming();
+}
+
+function renderUpcoming(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const future=Object.entries(DS.bookingsByDate)
+    .filter(([k,bks])=>{const[y,m,d]=k.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setHours(0,0,0,0);return dt>=today&&bks.length>0;})
+    .sort(([a],[b])=>a.localeCompare(b)).slice(0,7);
+  if(!future.length){document.getElementById('upcomingList').innerHTML=`<div style="font-size:.78rem;color:var(--gray);padding:8px 0;">No upcoming bookings.</div>`;return;}
+  document.getElementById('upcomingList').innerHTML=future.map(([key,bks])=>{
+    const[y,m,d]=key.split('-').map(Number);const dt=new Date(y,m-1,d);
+    const mon=dt.toLocaleDateString('en-US',{month:'short'}).toUpperCase();
+    const guests=bks.reduce((s,b)=>s+(b.party_size||1),0);
+    return `<div class="upcoming-item${DS.selectedDate===key?' active':''}" onclick="Dashboard.selectDate('${key}')">
+      <div class="upcoming-date-box"><div class="umon">${mon}</div><div class="uday">${d}</div></div>
+      <div class="upcoming-info"><div class="upcoming-count">${bks.length} booking${bks.length>1?'s':''}</div><div class="upcoming-guests">${guests} guest${guests>1?'s':''}</div></div>
+      <span style="font-size:.7rem;color:var(--gray);">›</span>
+    </div>`;
+  }).join('');
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DAY DETAIL
+   ────────────────────────────────────────────────────────────── */
+function renderDayDetail(dateKey){
+  const panel=document.getElementById('dayPanel');
+  const bksAll=DS.bookingsByDate[dateKey]||[];
+  const isBlocked=!!DS.blockedDates[dateKey];
+  const [y,m,d]=dateKey.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  const dateLabel=fmtDate(dateKey);
+  const timeSlots=generateTimeSlots();
+  const todayDt=new Date();todayDt.setHours(0,0,0,0);
+  const isPastDay=dt<todayDt;
+  const isToday=dt.getTime()===todayDt.getTime();
+  const now=new Date();
+
+  let bks=bksAll;
+  if(DS.filterStatus!=='all') bks=bks.filter(b=>b.status===DS.filterStatus);
+  if(DS.searchQuery){
+    const q=DS.searchQuery.toLowerCase();
+    bks=bks.filter(b=>`${b.first_name} ${b.last_name}`.toLowerCase().includes(q)||(b.email||'').toLowerCase().includes(q)||(b.id||'').toLowerCase().includes(q)||(b.phone||'').includes(q));
+  }
+
+  const waiverMap={};
+  DS.waivers.forEach(w=>{if(!waiverMap[w.booking_id])waiverMap[w.booking_id]=[];waiverMap[w.booking_id].push(w);});
+
+  // Slot map
+  const slotBookingMap={};
+  bksAll.forEach(b=>{
+    (b.slots||[]).forEach(s=>{
+      if(s.date!==dateKey)return;
+      const rawId=s.id||'';
+      const slotId=rawId.includes('__')?rawId.split('__')[1]:rawId;
+      if(!slotBookingMap[slotId])slotBookingMap[slotId]=[];
+      slotBookingMap[slotId].push(b);
+    });
+  });
+
+  const bookedCount=Object.keys(slotBookingMap).length;
+  const totalSlots=timeSlots.length;
+  const pct=totalSlots?Math.round(bookedCount/totalSlots*100):0;
+  const barCls=pct>=100?'full':pct>=70?'busy':'';
+  const totalGuests=bksAll.reduce((s,b)=>s+(b.party_size||1),0);
+  const revenue=bksAll.filter(b=>b.status==='confirmed').reduce((s,b)=>s+parseFloat(b.total_amount||0),0);
+
+  // Must be declared BEFORE blockSlotsBtn uses it
+  const dayBlockedSlots = DS.blockedSlots[dateKey] || {};
+  const blockedSlotCount=Object.keys(dayBlockedSlots).length;
+  const blockBtn=isBlocked
+    ? `<button class="block-btn open" onclick="Dashboard.openDate('${dateKey}')">✅ Open This Date</button>`
+    : `<button class="block-btn block" onclick="Dashboard.promptBlockDate('${dateKey}')">🚫 Block This Date</button>`;
+  const blockSlotsBtn=!isBlocked
+    ? `<button class="block-btn block" style="background:#fff3cd;color:#856404;border-color:#ffc107;" onclick="Dashboard.promptBlockSlots('${dateKey}')" title="Block or unblock specific time slots">⏱️ Block Slots${blockedSlotCount>0?' ('+blockedSlotCount+')':''}</button>`
+    : '';
+
+  const blockedBanner=isBlocked
+    ? `<div class="blocked-banner">
+        <div style="font-size:1.5rem;margin-bottom:8px;">🚫</div>
+        <div style="font-weight:700;color:var(--red);margin-bottom:6px;">This date is blocked</div>
+        <div style="font-size:.82rem;color:var(--gray);">${DS.blockedDates[dateKey].reason?'Reason: '+DS.blockedDates[dateKey].reason:'No reason provided.'}</div>
+        <div style="font-size:.78rem;color:var(--gray);margin-top:4px;">No new bookings are accepted on this day. Click "Open This Date" to re-enable bookings.</div>
+      </div>`
+    : '';
+
+  // Header
+  const header=`<div class="day-header">
+    <div>
+      <div class="day-title">${dateLabel}</div>
+      <div class="day-sub">${bksAll.length} booking${bksAll.length!==1?'s':''} · ${totalGuests} guest${totalGuests!==1?'s':''} · $${revenue.toFixed(0)} revenue${isBlocked?' · <span style="color:var(--red);font-weight:700;">BLOCKED</span>':''}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="slot-occupancy">
+        <div class="occ-bar-wrap"><div class="occ-bar ${barCls}" style="width:${pct}%;"></div></div>
+        <span class="occ-text">${bookedCount}/${totalSlots} slots</span>
+      </div>
+      ${blockSlotsBtn}
+      ${blockBtn}
+      ${!isBlocked?`<button class="block-btn" style="background:var(--green-light);color:var(--green);border:1.5px solid #a8dfc0;" onclick="Dashboard.promptAddBooking('${dateKey}')">➕ Add Booking</button>`:''}
+    </div>
+  </div>`;
+
+  // Filter bar
+  const filterBar=`<div class="filter-bar">
+    <span class="filter-label">Show:</span>
+    <div class="filter-chip ${DS.filterStatus==='all'?'active':''}" onclick="Dashboard.setFilter('all')">All (${bksAll.length})</div>
+    <div class="filter-chip ${DS.filterStatus==='confirmed'?'active':''}" onclick="Dashboard.setFilter('confirmed')">✅ Confirmed (${bksAll.filter(b=>b.status==='confirmed').length})</div>
+    <div class="filter-chip ${DS.filterStatus==='pending_waivers'?'active':''}" onclick="Dashboard.setFilter('pending_waivers')">⏳ Pending (${bksAll.filter(b=>b.status==='pending_waivers').length})</div>
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" placeholder="Search…" value="${DS.searchQuery}" oninput="Dashboard.setSearch(this.value)" />
+    </div>
+  </div>`;
+
+  // ── B/I slot booking map (30-min top-of-hour slots)
+  const biSlotMap={};
+  bksAll.filter(b=>!b.booking_type||b.booking_type==='beginner_intermediate').forEach(b=>{
+    (b.slots||[]).forEach(s=>{
+      if(s.date!==dateKey)return;
+      const rawId=s.id||'';const sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
+      if(!biSlotMap[sid])biSlotMap[sid]=[];biSlotMap[sid].push(b);
+    });
+  });
+  // ── SRL slot booking map (15-min slots)
+  const srlSlotMap={};
+  bksAll.filter(b=>b.booking_type==='ski_ride_lesson').forEach(b=>{
+    (b.slots||[]).forEach(s=>{
+      if(s.date!==dateKey)return;
+      const rawId=s.id||'';const sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
+      if(!srlSlotMap[sid])srlSlotMap[sid]=[];srlSlotMap[sid].push(b);
+    });
+  });
+
+  // ── B/I Timeline (30-min slots)
+  const tl=timeSlots.map(slot=>{
+    const bfs=biSlotMap[slot.id]||[];
+    const isPastSlot=isPastDay||(isToday&&now.getHours()>slot.hour);
+    const isSlotBlocked=!!dayBlockedSlots[slot.id];
+    if(bfs.length>0){
+      const name=bfs[0].first_name||'Guest';
+      const extra=bfs.length>1?`<div class="tl-count">+${bfs.length-1}</div>`:'';
+      return `<div class="tl-slot tl-booked" onclick="Dashboard.scrollToBooking('${bfs[0].id}')" title="${bfs.map(b=>`${b.first_name} ${b.last_name}`).join(', ')}">
+        <span class="tl-time">${slot.label}</span><div class="tl-name">${name}</div>${extra}</div>`;
+    }
+    if(isSlotBlocked){
+      return `<div class="tl-slot tl-slot-blocked" onclick="Dashboard.promptUnblockSlot('${dateKey}','${slot.id}')" title="Blocked — click to unblock">
+        <span class="tl-time">${slot.label}</span><div class="tl-name">🚫 Blocked</div></div>`;
+    }
+    return `<div class="tl-slot ${isPastSlot?'tl-past':'tl-free'}">
+      <span class="tl-time">${slot.label}</span><div class="tl-name">${isPastSlot?'Past':'Open'}</div></div>`;
+  }).join('');
+
+  // ── SRL Timeline (15-min slots — 2 per hour)
+  function fmt12(h,m){const h12=h%12||12;const ap=h>=12?'PM':'AM';return `${h12}:${String(m).padStart(2,'0')}`;}
+  const srlSlots=[];
+  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++){
+    srlSlots.push({id:`${String(h).padStart(2,'0')}00`,label:fmt12(h,0),hour:h});
+    srlSlots.push({id:`${String(h).padStart(2,'0')}15`,label:fmt12(h,15),hour:h});
+  }
+  const tlSrl=srlSlots.map(slot=>{
+    const bfs=srlSlotMap[slot.id]||[];
+    const isPastSlot=isPastDay||(isToday&&now.getHours()>slot.hour);
+    if(bfs.length>0){
+      const name=bfs[0].first_name||'Guest';
+      return `<div class="tl-slot tl-booked" style="background:#ea580c;border-color:#ea580c;" onclick="Dashboard.scrollToBooking('${bfs[0].id}')" title="${bfs.map(b=>`${b.first_name} ${b.last_name}`).join(', ')}">
+        <span class="tl-time">${slot.label}</span><div class="tl-name">${name}</div></div>`;
+    }
+    return `<div class="tl-slot ${isPastSlot?'tl-past':'tl-free'}">
+      <span class="tl-time">${slot.label}</span><div class="tl-name">${isPastSlot?'Past':'Open'}</div></div>`;
+  }).join('');
+
+  // Cards
+  let cards='';
+  if(!bks.length){
+    cards=`<div style="text-align:center;padding:32px;color:var(--gray);">
+      <div style="font-size:2rem;margin-bottom:8px;">🔍</div>
+      <div style="font-size:.9rem;">No bookings match the current filter.</div>
+    </div>`;
+  } else {
+    cards=bks.map(b=>{
+      const name=`${b.first_name||''} ${b.last_name||''}`.trim()||'Unknown';
+      const wrs=waiverMap[b.id]||[];
+      const slotsForDay=(b.slots||[]).filter(s=>s.date===dateKey);
+      const createdAt=b.created_at?new Date(b.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+      const slotChips=slotsForDay.map(s=>{
+        const rawId=s.id||'';const slotId=rawId.includes('__')?rawId.split('__')[1]:rawId;
+        const h=parseInt(slotId.substr(0,2),10);const h12=h%12||12;const ap=h>=12?'PM':'AM';
+        return `<span class="bk-slot-chip">🕐 ${s.label||h12+':00 '+ap}</span>`;
+      }).join('');
+      const waiverRows=wrs.length>0?wrs.map(w=>`<div class="waiver-guest-row">
+        <span>${w.guest_name||w.guest_email||'Guest'}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${w.waiver_ref?`<span style="font-family:monospace;font-size:.7rem;color:var(--gray);">${w.waiver_ref}</span>`:''}
+          ${waiverBadge(w.status)}
+        </div></div>`).join('')
+        :`<div style="font-size:.78rem;color:var(--gray);padding:6px 0;">No waiver records found.</div>`;
+      const typeBadge=b.booking_type==='ski_ride_lesson'
+        ?`<span style="font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:20px;background:#fff3e8;color:#ea580c;border:1px solid #fcc;white-space:nowrap;">🏄 Ski Ride</span>`
+        :`<span style="font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--blue-light);color:var(--navy);border:1px solid #b3ddf0;white-space:nowrap;">🌊 B/I</span>`;
+      return `<div class="booking-card" id="bk-${b.id}">
+        <div class="booking-card-header" onclick="Dashboard.toggleCard('${b.id}')">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+              <span class="bk-ref">${b.id}</span>${typeBadge}${statusBadge(b.status)}
+            </div>
+            <div class="bk-name">${name}</div>
+            <div class="bk-meta">${b.email||''} · ${b.party_size||1} guest${(b.party_size||1)>1?'s':''}</div>
+          </div>
+          <div class="bk-right">
+            <div class="bk-amount">$${parseFloat(b.total_amount||0).toFixed(2)}</div>
+            <span class="chevron" id="chevron-${b.id}">▼</span>
+          </div>
+        </div>
+        <div class="booking-card-body" id="body-${b.id}">
+          <div class="bk-details-grid">
+            <div class="bk-field"><label>Email</label><span><a href="mailto:${b.email||''}">${b.email||'—'}</a></span></div>
+            <div class="bk-field"><label>Phone</label><span><a href="tel:${b.phone||''}">${b.phone||'—'}</a></span></div>
+            <div class="bk-field"><label>Party Size</label><span>${b.party_size||1} guest${(b.party_size||1)>1?'s':''}</span></div>
+            <div class="bk-field"><label>Amount Paid</label><span style="color:var(--green);font-weight:600;">$${parseFloat(b.total_amount||0).toFixed(2)}</span></div>
+            <div class="bk-field"><label>Booked On</label><span>${createdAt}</span></div>
+            <div class="bk-field"><label>Status</label><span>${statusBadge(b.status)}</span></div>
+          </div>
+          ${slotsForDay.length?`<div style="margin-bottom:12px;"><div style="font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Slots on this day</div><div>${slotChips}</div></div>`:''}
+          <div><div style="font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Waiver Status</div>${waiverRows}</div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
+            ${b.status!=='cancelled'?`<button class="btn-danger-sm" onclick="Dashboard.cancelBooking('${b.id}','${(name).replace(/'/g,'&#39;')}')">✕ Cancel Booking</button>`:''}
+            <span style="font-size:.72rem;color:var(--gray);align-self:center;">ID: <span style="font-family:monospace;">${b.id}</span></span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  panel.innerHTML=`${header}${filterBar}
+    ${blockedBanner}
+    <div class="timeline-wrap">
+      <div class="timeline-title">🌊 Beginner / Intermediate Slots (30 min)</div>
+      <div class="timeline">${tl}</div>
+    </div>
+    <div class="timeline-wrap">
+      <div class="timeline-title">🏄 Ski Ride Lesson Slots (15 min)</div>
+      <div class="timeline" style="grid-template-columns:repeat(auto-fill,minmax(60px,1fr));">${tlSrl}</div>
+    </div>
+    <div class="bookings-wrap"><div class="bookings-title">Bookings (${bks.length})</div>${cards}</div>`;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   CUSTOMERS TAB
+   ────────────────────────────────────────────────────────────── */
+function renderCustomers(){
+  const q=(document.getElementById('custSearch')?.value||'').toLowerCase();
+  const waiverMap={};
+  DS.waivers.forEach(w=>{if(!waiverMap[w.booking_id])waiverMap[w.booking_id]=[];waiverMap[w.booking_id].push(w);});
+
+  let bks=[...DS.bookings];
+  if(DS.custFilter!=='all') bks=bks.filter(b=>b.status===DS.custFilter);
+  if(q) bks=bks.filter(b=>
+    `${b.first_name} ${b.last_name}`.toLowerCase().includes(q)||
+    (b.email||'').toLowerCase().includes(q)||(b.id||'').toLowerCase().includes(q)||
+    (b.phone||'').includes(q)||(b.party_name||'').toLowerCase().includes(q));
+
+  // Update filter chip counts
+  document.querySelectorAll('#tab-customers .filter-chip').forEach(el=>{
+    const f=el.id.replace('custFilter','').toLowerCase();
+    const key=f==='all'?'all':f==='confirmed'?'confirmed':f==='pending'?'pending_waivers':'cancelled';
+    const count=key==='all'?DS.bookings.length:DS.bookings.filter(b=>b.status===key).length;
+    el.textContent=`${f==='confirmed'?'✅ Confirmed':f==='pending'?'⏳ Pending':f==='cancelled'?'✕ Cancelled':'All'} (${count})`;
+  });
+
+  const container=document.getElementById('customersTableContainer');
+  if(!bks.length){
+    container.innerHTML=`<div class="empty-state"><div class="empty-state-icon">👥</div><div style="font-weight:600;margin-bottom:4px;">No customers found</div><div style="font-size:.82rem;color:var(--gray);">Try adjusting the filter or search.</div></div>`;
+    return;
+  }
+
+  const rows=bks.map(b=>{
+    const name=`${b.first_name||''} ${b.last_name||''}`.trim()||'Unknown';
+    const wrs=waiverMap[b.id]||[];
+    const allSigned=wrs.length>0&&wrs.every(w=>w.status==='signed');
+    const allDates=[...new Set((b.slots||[]).map(s=>s.date).filter(Boolean))].sort();
+    const dateTags=allDates.map(d=>`<span class="slot-tag">${d}</span>`).join('');
+    const signed=wrs.filter(w=>w.status==='signed').length;
+    const total=wrs.length;
+    const waiverStr=total?`${signed}/${total} signed`:'—';
+    const waiverColor=allSigned?'var(--green)':total?'#92600a':'var(--gray)';
+    const createdAt=b.created_at?new Date(b.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    const custTypeBadge=b.booking_type==='ski_ride_lesson'
+      ?`<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:20px;background:#fff3e8;color:#ea580c;border:1px solid #fcc;">🏄 Ski Ride</span>`
+      :`<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:20px;background:var(--blue-light);color:var(--navy);border:1px solid #b3ddf0;">🌊 B/I</span>`;
+    return `<tr>
+      <td><div class="cust-name">${name}</div><div class="cust-ref">${b.id}</div><div style="margin-top:3px;">${custTypeBadge}</div></td>
+      <td><a href="mailto:${b.email||''}">${b.email||'—'}</a><br/><a href="tel:${b.phone||''}" style="color:var(--gray);font-size:.78rem;">${b.phone||''}</a></td>
+      <td>${b.party_size||1}</td>
+      <td>${dateTags||'—'}</td>
+      <td>$${parseFloat(b.total_amount||0).toFixed(2)}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td style="color:${waiverColor};font-size:.78rem;font-weight:600;">${waiverStr}</td>
+      <td style="font-size:.78rem;color:var(--gray);">${createdAt}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML=`<table class="customers-table">
+    <thead><tr>
+      <th>Customer</th><th>Contact</th><th>Party</th>
+      <th>Booked Dates</th><th>Amount</th><th>Status</th><th>Waivers</th><th>Booked On</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   COUPONS TAB
+   ────────────────────────────────────────────────────────────── */
+function renderCoupons(){
+  const grid=document.getElementById('couponsGrid');
+  if(!DS.coupons.length){
+    grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🎟️</div><div style="font-weight:600;margin-bottom:4px;">No coupons yet</div><div style="font-size:.82rem;color:var(--gray);">Click "+ Add Coupon" to create your first coupon code.</div></div>`;
+    return;
+  }
+  grid.innerHTML=DS.coupons.map(c=>{
+    const val=c.discount_type==='buy2get1'
+      ?'🎁 Buy 2 Get 1 FREE'
+      :c.discount_type==='percent'
+        ?`${c.discount_value}% OFF`
+        :`$${parseFloat(c.discount_value).toFixed(2)} OFF`;
+    const usesStr=c.max_uses?`${c.uses_count||0} / ${c.max_uses} uses`:`${c.uses_count||0} uses (unlimited)`;
+    const expiryStr=c.expires_at?`Expires ${new Date(c.expires_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`:null;
+    const isExpired=c.expires_at&&new Date(c.expires_at)<new Date();
+    const isUsedUp=c.max_uses&&(c.uses_count||0)>=c.max_uses;
+    return `<div class="coupon-card${!c.is_active?' inactive':''}">
+      <div style="display:flex;align-items:start;justify-content:space-between;">
+        <div class="coupon-code">${c.code}</div>
+        <button class="toggle-badge ${c.is_active?'active-badge':'inactive-badge'}" onclick="Dashboard.toggleCoupon('${c.code}',${!c.is_active})">${c.is_active?'Active':'Inactive'}</button>
+      </div>
+      <div class="coupon-value">${val}</div>
+      ${c.description?`<div style="font-size:.78rem;color:var(--navy);margin-top:4px;">${c.description}</div>`:''}
+      <div class="coupon-meta">
+        <div class="info-row">📊 ${usesStr}</div>
+        ${expiryStr?`<div class="info-row" style="${isExpired?'color:var(--red)':''}">${isExpired?'⚠️ EXPIRED · ':'📅 '}${expiryStr}</div>`:''}
+        ${isUsedUp?`<div class="info-row" style="color:var(--red);">⚠️ Usage limit reached</div>`:''}
+      </div>
+      <div class="coupon-actions">
+        <button class="btn-danger-sm" onclick="Dashboard.deleteCoupon('${c.code}')">🗑️ Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DASHBOARD CONTROLLER
+   ────────────────────────────────────────────────────────────── */
+const Dashboard = {
+
+  checkPin(){
+    const input=document.getElementById('pinInput');
+    if(input.value.trim()===CONFIG.STAFF_PIN){
+      sessionStorage.setItem('staffPin',input.value.trim());
+      document.getElementById('pinGate').style.display='none';
+      document.getElementById('mainDashboard').style.display='block';
+      document.getElementById('tabBar').style.display='flex';
+      this.init();
+    } else {
+      input.classList.add('pin-error');
+      document.getElementById('pinErrorMsg').textContent='Incorrect PIN. Please try again.';
+      input.value='';
+    }
+  },
+
+  async init(){
+    this.startClock();
+    await this.loadData();
+    const today=todayKey();
+    if(DS.bookingsByDate[today]&&DS.bookingsByDate[today].length) this.selectDate(today);
+  },
+
+  async loadData(){
+    const btn=document.getElementById('refreshBtn');
+    document.getElementById('refreshIcon').className='spin';
+    btn.classList.add('refreshing');
+    try{
+      await fetchAll();
+      renderStats();
+      renderCalendar();
+      if(DS.selectedDate) renderDayDetail(DS.selectedDate);
+      if(DS.activeTab==='customers') renderCustomers();
+      if(DS.activeTab==='coupons') renderCoupons();
+    }catch(e){console.error('Load error:',e);}
+    document.getElementById('refreshIcon').className='';
+    btn.classList.remove('refreshing');
+  },
+
+  async refresh(){ await this.loadData(); },
+
+  setTab(tab){
+    DS.activeTab=tab;
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','coupons'][i]===tab));
+    document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    if(tab==='customers') renderCustomers();
+    if(tab==='coupons')   renderCoupons();
+  },
+
+  selectDate(key){
+    DS.selectedDate=key;
+    DS.filterStatus='all';
+    DS.searchQuery='';
+    renderCalendar();
+    renderDayDetail(key);
+    setTimeout(()=>document.getElementById('dayPanel').scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+  },
+
+  prevMonth(){ if(DS.viewMonth===0){DS.viewMonth=11;DS.viewYear--;}else DS.viewMonth--;renderCalendar(); },
+  nextMonth(){ if(DS.viewMonth===11){DS.viewMonth=0;DS.viewYear++;}else DS.viewMonth++;renderCalendar(); },
+  goToday(){ const n=new Date();DS.viewYear=n.getFullYear();DS.viewMonth=n.getMonth();this.selectDate(todayKey());renderCalendar(); },
+
+  toggleCard(id){
+    const body=document.getElementById(`body-${id}`);
+    const chev=document.getElementById(`chevron-${id}`);
+    if(!body)return;
+    body.classList.toggle('open');
+    chev.classList.toggle('open');
+  },
+
+  scrollToBooking(id){
+    const card=document.getElementById(`bk-${id}`);
+    if(!card)return;
+    card.scrollIntoView({behavior:'smooth',block:'center'});
+    const body=document.getElementById(`body-${id}`);
+    if(body&&!body.classList.contains('open'))this.toggleCard(id);
+  },
+
+  setFilter(s){DS.filterStatus=s;if(DS.selectedDate)renderDayDetail(DS.selectedDate);},
+  setSearch(q){DS.searchQuery=q;if(DS.selectedDate)renderDayDetail(DS.selectedDate);},
+
+  setCustFilter(f){
+    DS.custFilter=f;
+    ['all','confirmed','pending_waivers','cancelled'].forEach(x=>{
+      const el=document.getElementById('custFilter'+({all:'All',confirmed:'Confirmed',pending_waivers:'Pending',cancelled:'Cancelled'}[x]));
+      if(el)el.classList.toggle('active',x===f);
+    });
+    renderCustomers();
+  },
+
+  /* ── Block / Open Dates ── */
+  promptBlockDate(dateKey){
+    this.showModal(
+      '🚫 Block This Date',
+      `<div style="margin-bottom:12px;">Are you sure you want to block <strong>${fmtDate(dateKey)}</strong>? Guests will not be able to book on this day.</div>
+       <div><label style="font-size:.78rem;font-weight:600;color:var(--gray);display:block;margin-bottom:6px;">Reason (optional)</label>
+       <input type="text" id="blockReason" placeholder="e.g. Private event, Maintenance…" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:'Inter',sans-serif;outline:none;" /></div>`,
+      'danger',
+      'Block Date',
+      async ()=>{
+        const reason=document.getElementById('blockReason')?.value.trim()||'';
+        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates`,{
+          method:'POST',
+          headers:sbH({'Prefer':'return=minimal'}),
+          body:JSON.stringify({date:dateKey,reason,blocked_by:'staff'}),
+        });
+        await this.loadData();
+        this.selectDate(dateKey);
+      }
+    );
+  },
+
+  openDate(dateKey){
+    this.showModal(
+      '✅ Open This Date',
+      `Remove the block on <strong>${fmtDate(dateKey)}</strong> and allow bookings again?`,
+      'confirm',
+      'Open Date',
+      async ()=>{
+        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?date=eq.${encodeURIComponent(dateKey)}`,{
+          method:'DELETE',
+          headers:sbH(),
+        });
+        await this.loadData();
+        this.selectDate(dateKey);
+      }
+    );
+  },
+
+  /* ── Block / Open Individual Slots ── */
+  promptBlockSlots(dateKey){
+    const timeSlots=generateTimeSlots();
+    const dayBlocked=DS.blockedSlots[dateKey]||{};
+    const dayBookings=DS.bookingsByDate[dateKey]||[];
+
+    // Build a set of slot IDs that have bookings today
+    const bookedSlotIds=new Set();
+    dayBookings.forEach(b=>{
+      (b.slots||[]).forEach(s=>{
+        if(s.date!==dateKey)return;
+        const rawId=s.id||'';
+        const slotId=rawId.includes('__')?rawId.split('__')[1]:rawId;
+        bookedSlotIds.add(slotId);
+      });
+    });
+
+    // Render slot picker chips
+    const chips=timeSlots.map(slot=>{
+      const isBooked=bookedSlotIds.has(slot.id);
+      const isBlocked=!!dayBlocked[slot.id];
+      if(isBooked){
+        return `<div class="sp-slot sp-booked" title="Has booking — cannot block">${slot.label}<br/><span style="font-size:.6rem;">Booked</span></div>`;
+      }
+      const cls=isBlocked?'sp-blocked':'sp-free';
+      const stateLabel=isBlocked?'🚫 Blocked':'Open';
+      return `<div class="sp-slot ${cls}" id="sp-${slot.id}" data-slot="${slot.id}" data-blocked="${isBlocked?'1':'0'}" onclick="Dashboard._toggleSlotChip(this)">${slot.label}<br/><span class="sp-label" style="font-size:.6rem;">${stateLabel}</span></div>`;
+    }).join('');
+
+    document.getElementById('modalBox').classList.add('modal-wide');
+    this.showModal(
+      `⏱️ Block / Unblock Slots — ${fmtDate(dateKey)}`,
+      `<div style="font-size:.82rem;color:var(--gray);margin-bottom:10px;">Click a slot to toggle its blocked state. <strong style="color:#856404;">Yellow</strong> = blocked. Booked slots cannot be changed.</div>
+       <div class="slot-picker">${chips}</div>
+       <div style="margin-top:14px;">
+         <label style="font-size:.78rem;font-weight:600;color:var(--gray);display:block;margin-bottom:6px;">Reason (optional — applied to newly blocked slots)</label>
+         <input type="text" id="blockSlotReason" placeholder="e.g. Maintenance, private event…" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:'Inter',sans-serif;outline:none;" />
+       </div>`,
+      'confirm',
+      'Save Changes',
+      async ()=>{
+        document.getElementById('modalBox').classList.remove('modal-wide');
+        await this._saveSlotBlocks(dateKey, bookedSlotIds);
+      }
+    );
+
+    // Override modal actions to add a "Clear All" button
+    document.getElementById('modalActions').innerHTML=`
+      <button class="modal-btn cancel" onclick="Dashboard._clearAllSlotChips()">Clear All Blocks</button>
+      <button class="modal-btn cancel" onclick="Dashboard.closeModal();document.getElementById('modalBox').classList.remove('modal-wide');">Cancel</button>
+      <button class="modal-btn confirm" onclick="Dashboard.confirmModal()">Save Changes</button>
+    `;
+  },
+
+  _toggleSlotChip(el){
+    const nowBlocked=el.dataset.blocked==='1';
+    el.dataset.blocked=nowBlocked?'0':'1';
+    if(nowBlocked){
+      el.className='sp-slot sp-free';
+      el.querySelector('.sp-label').textContent='Open';
+    } else {
+      el.className='sp-slot sp-blocked sp-selected';
+      el.querySelector('.sp-label').textContent='🚫 Blocked';
+    }
+  },
+
+  _clearAllSlotChips(){
+    document.querySelectorAll('.sp-slot[data-blocked="1"]').forEach(el=>{
+      el.dataset.blocked='0';
+      el.className='sp-slot sp-free';
+      el.querySelector('.sp-label').textContent='Open';
+    });
+  },
+
+  async _saveSlotBlocks(dateKey, bookedSlotIds){
+    const reason=(document.getElementById('blockSlotReason')?.value||'').trim();
+    const timeSlots=generateTimeSlots();
+    const dayBlocked=DS.blockedSlots[dateKey]||{};
+    const ops=[];
+
+    timeSlots.forEach(slot=>{
+      if(bookedSlotIds.has(slot.id)) return; // skip booked slots
+      const chip=document.getElementById(`sp-${slot.id}`);
+      if(!chip)return;
+      const wantsBlocked=chip.dataset.blocked==='1';
+      const isCurrentlyBlocked=!!dayBlocked[slot.id];
+      if(wantsBlocked&&!isCurrentlyBlocked){
+        // INSERT
+        ops.push(fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots`,{
+          method:'POST',
+          headers:sbH({'Prefer':'return=minimal'}),
+          body:JSON.stringify({date:dateKey,slot_id:slot.id,reason:reason||null,blocked_by:'staff'}),
+        }));
+      } else if(!wantsBlocked&&isCurrentlyBlocked){
+        // DELETE by row id
+        const rowId=dayBlocked[slot.id].id;
+        ops.push(fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?id=eq.${encodeURIComponent(rowId)}`,{
+          method:'DELETE',
+          headers:sbH(),
+        }));
+      }
+    });
+
+    await Promise.all(ops);
+    await this.loadData();
+    this.selectDate(dateKey);
+  },
+
+  promptUnblockSlot(dateKey, slotId){
+    const timeSlots=generateTimeSlots();
+    const slot=timeSlots.find(s=>s.id===slotId);
+    const label=slot?slot.label:slotId;
+    this.showModal(
+      '✅ Unblock Slot',
+      `Remove the block on <strong>${label}</strong> on <strong>${fmtDate(dateKey)}</strong> and allow bookings again?`,
+      'confirm',
+      'Unblock Slot',
+      async ()=>{
+        const row=DS.blockedSlots[dateKey]?.[slotId];
+        if(row&&row.id){
+          await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?id=eq.${encodeURIComponent(row.id)}`,{
+            method:'DELETE',headers:sbH(),
+          });
+        }
+        await this.loadData();
+        this.selectDate(dateKey);
+      }
+    );
+  },
+
+  /* ── Cancel Booking ── */
+  cancelBooking(bookingId, guestName){
+    this.showModal(
+      '✕ Cancel Booking',
+      `<div>Are you sure you want to cancel the booking for <strong>${guestName}</strong>?</div>
+       <div style="margin-top:10px;padding:10px 14px;background:#fdf0ef;border:1.5px solid #f5c6c0;border-radius:var(--radius-sm);font-size:.82rem;color:var(--red);">⚠️ This action will mark the booking as cancelled. The guest will need to be refunded manually via Stripe if applicable.</div>`,
+      'danger',
+      'Cancel Booking',
+      async ()=>{
+        const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(bookingId)}`,{
+          method:'PATCH',
+          headers:sbH({'Prefer':'return=representation'}),
+          body:JSON.stringify({status:'cancelled'}),
+        });
+        if(!res.ok){
+          const t=await res.text();let msg='Unknown error.';
+          try{msg=JSON.parse(t)?.message||t;}catch(_){}
+          alert(`❌ Could not cancel booking.\n\nError: ${msg}\n\nIf this keeps happening, run this SQL in Supabase:\nCREATE POLICY "anon_update_bookings" ON public.bookings FOR UPDATE TO anon USING (true) WITH CHECK (true);`);
+          return;
+        }
+        const updated=await res.json();
+        if(!updated||updated.length===0){
+          alert('❌ Cancellation failed — the booking was not updated in the database.\n\nPlease run this SQL in your Supabase SQL Editor and try again:\n\nCREATE POLICY "anon_update_bookings"\nON public.bookings\nFOR UPDATE TO anon\nUSING (true)\nWITH CHECK (true);');
+          return;
+        }
+        await this.loadData();
+        if(DS.selectedDate) this.selectDate(DS.selectedDate);
+      }
+    );
+  },
+
+  /* ── Add Manual Booking ── */
+  promptAddBooking(dateKey){
+    const timeSlots=generateTimeSlots();
+    const dayBks=DS.bookingsByDate[dateKey]||[];
+    const dayBlockedSlots=DS.blockedSlots[dateKey]||{};
+
+    // Build occupied slot sets
+    const biBooked=new Set(); const srlBooked=new Set();
+    Object.keys(dayBlockedSlots).forEach(sid=>{biBooked.add(sid);srlBooked.add(sid);srlBooked.add(sid.slice(0,2)+'15');});
+    dayBks.forEach(b=>{
+      (b.slots||[]).forEach(s=>{
+        if(s.date!==dateKey)return;
+        const rawId=s.id||'';const sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
+        if(!b.booking_type||b.booking_type==='beginner_intermediate'){
+          biBooked.add(sid);srlBooked.add(sid);srlBooked.add(sid.slice(0,2)+'15');
+        } else {
+          srlBooked.add(sid);
+          if(sid.endsWith('15'))biBooked.add(sid.slice(0,2)+'00');
+          else biBooked.add(sid);
+        }
+      });
+    });
+    // Store for _rebuildAddSlots access
+    Dashboard._addBiBooked=biBooked; Dashboard._addSrlBooked=srlBooked;
+
+    const inputStyle='width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:"Inter",sans-serif;outline:none;';
+    document.getElementById('modalBox').classList.add('modal-wide');
+    this.showModal(
+      `➕ Add Manual Booking — ${fmtDate(dateKey)}`,
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div class="form-field"><label>First Name *</label><input type="text" id="ab-fn" placeholder="First name" style="${inputStyle}"/></div>
+        <div class="form-field"><label>Last Name *</label><input type="text" id="ab-ln" placeholder="Last name" style="${inputStyle}"/></div>
+        <div class="form-field"><label>Email *</label><input type="email" id="ab-em" placeholder="guest@email.com" style="${inputStyle}"/></div>
+        <div class="form-field"><label>Phone</label><input type="tel" id="ab-ph" placeholder="Phone number" style="${inputStyle}"/></div>
+        <div class="form-field"><label>Party Size</label><input type="number" id="ab-ps" value="1" min="1" max="20" style="${inputStyle}"/></div>
+        <div class="form-field"><label>Booking Type</label>
+          <select id="ab-type" onchange="Dashboard._rebuildAddSlots('${dateKey}')" style="${inputStyle}">
+            <option value="beginner_intermediate">🌊 Beginner / Intermediate ($${CONFIG.SLOT_PRICE}/slot)</option>
+            <option value="ski_ride_lesson">🏄 Ski Ride Lesson ($75/slot)</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:.78rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Select Time Slots <span style="font-weight:400;color:var(--gray);">(click to select)</span></div>
+      <div class="slot-picker" id="add-slot-picker">${this._buildAddSlotPickerHtml('beginner_intermediate',biBooked,srlBooked,timeSlots)}</div>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--blue-light);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:.82rem;color:var(--navy);">Total Amount:</span>
+        <strong id="ab-total" style="font-family:'Montserrat',sans-serif;font-size:1rem;color:var(--navy-dark);">$0.00</strong>
+      </div>
+      <div id="ab-error" style="margin-top:6px;font-size:.8rem;color:var(--red);min-height:16px;"></div>`,
+      'confirm','Save Booking',
+      async ()=>{ await this._saveManualBooking(dateKey); }
+    );
+    document.getElementById('modalActions').innerHTML=`
+      <button class="modal-btn cancel" onclick="Dashboard.closeModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="Dashboard.confirmModal()">Save Booking</button>`;
+  },
+
+  _buildAddSlotPickerHtml(type, biBooked, srlBooked, timeSlots){
+    if(type==='beginner_intermediate'){
+      return timeSlots.map(slot=>{
+        const isOccupied=(biBooked||new Set()).has(slot.id);
+        const cls=isOccupied?'sp-slot sp-booked':'sp-slot sp-free';
+        const onclick=!isOccupied?`onclick="Dashboard._toggleAddSlot(this)"`:' ';
+        return `<div class="${cls}" id="add-sp-${slot.id}" data-slot="${slot.id}" ${onclick}>${slot.label}<br/><span style="font-size:.6rem;">${isOccupied?'Booked':'Open'}</span></div>`;
+      }).join('');
+    } else {
+      let html='';
+      const sBooked=srlBooked||new Set();
+      function fmt12(h,m){const h12=h%12||12;const ap=h>=12?'PM':'AM';return `${h12}:${String(m).padStart(2,'0')}`;}
+      for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++){
+        ['00','15'].forEach(mm=>{
+          const sid=String(h).padStart(2,'0')+mm;
+          const isOccupied=sBooked.has(sid);
+          const lbl=fmt12(h,parseInt(mm));
+          const cls=isOccupied?'sp-slot sp-booked':'sp-slot sp-free';
+          const onclick=!isOccupied?`onclick="Dashboard._toggleAddSlot(this)"`:' ';
+          html+=`<div class="${cls}" id="add-sp-${sid}" data-slot="${sid}" ${onclick}>${lbl}<br/><span style="font-size:.6rem;">${isOccupied?'Booked':'Open'}</span></div>`;
+        });
+      }
+      return html;
+    }
+  },
+
+  _toggleAddSlot(el){
+    const isSel=el.classList.contains('sp-selected');
+    if(isSel){el.classList.remove('sp-selected');el.classList.add('sp-free');}
+    else{el.classList.remove('sp-free');el.classList.add('sp-selected');}
+    this._updateAddTotal();
+  },
+
+  _updateAddTotal(){
+    const type=document.getElementById('ab-type')?.value||'beginner_intermediate';
+    const price=type==='ski_ride_lesson'?75:CONFIG.SLOT_PRICE;
+    const count=document.querySelectorAll('#add-slot-picker .sp-slot.sp-selected').length;
+    const el=document.getElementById('ab-total');
+    if(el) el.textContent=`$${(count*price).toFixed(2)} (${count} slot${count!==1?'s':''})`;
+  },
+
+  _rebuildAddSlots(dateKey){
+    const type=document.getElementById('ab-type')?.value||'beginner_intermediate';
+    const picker=document.getElementById('add-slot-picker');
+    if(!picker) return;
+    picker.innerHTML=this._buildAddSlotPickerHtml(type,Dashboard._addBiBooked,Dashboard._addSrlBooked,generateTimeSlots());
+    this._updateAddTotal();
+  },
+
+  async _saveManualBooking(dateKey){
+    const fn=(document.getElementById('ab-fn')?.value||'').trim();
+    const ln=(document.getElementById('ab-ln')?.value||'').trim();
+    const em=(document.getElementById('ab-em')?.value||'').trim();
+    const ph=(document.getElementById('ab-ph')?.value||'').trim();
+    const ps=parseInt(document.getElementById('ab-ps')?.value||'1');
+    const type=document.getElementById('ab-type')?.value||'beginner_intermediate';
+    const errEl=document.getElementById('ab-error');
+    const selSlots=[...document.querySelectorAll('#add-slot-picker .sp-slot.sp-selected')].map(el=>el.dataset.slot);
+
+    if(!fn||!ln){if(errEl)errEl.textContent='First and last name are required.';return;}
+    if(!em||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){if(errEl)errEl.textContent='A valid email is required.';return;}
+    if(!selSlots.length){if(errEl)errEl.textContent='Select at least one slot.';return;}
+
+    const price=type==='ski_ride_lesson'?75:CONFIG.SLOT_PRICE;
+    const total=selSlots.length*price;
+    const durationMin=type==='ski_ride_lesson'?15:30;
+
+    function slotLabel(sid){
+      const h=parseInt(sid.substr(0,2));const m=parseInt(sid.substr(2,2));
+      const h12=h%12||12;const ap=h>=12?'PM':'AM';
+      const totalM=h*60+m+durationMin;
+      const eh=Math.floor(totalM/60);const em2=totalM%60;
+      const eh12=eh%12||12;const eap=eh>=12?'PM':'AM';
+      return `${h12}:${String(m).padStart(2,'0')} – ${eh12}:${String(em2).padStart(2,'0')} ${eap}`;
+    }
+
+    const slots=selSlots.map(sid=>({id:`${dateKey}__${sid}`,date:dateKey,label:slotLabel(sid),price}));
+    const bookingId='BAL-'+Math.random().toString(36).substr(2,8).toUpperCase();
+
+    const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings`,{
+      method:'POST',
+      headers:sbH({'Prefer':'return=minimal'}),
+      body:JSON.stringify({id:bookingId,first_name:fn,last_name:ln,email:em,phone:ph||null,party_size:ps,total_amount:total,status:'confirmed',booking_type:type,slots,applied_coupon:null}),
+    });
+
+    if(!res.ok){
+      const t=await res.text();let msg='Save failed.';
+      try{msg=JSON.parse(t)?.message||t;}catch(_){}
+      if(errEl)errEl.textContent=msg;return;
+    }
+
+    await this.loadData();
+    this.selectDate(dateKey);
+  },
+
+  /* ── Coupons ── */
+  _onCouponTypeChange(){
+    const type=document.getElementById('cfType')?.value;
+    const wrap=document.getElementById('cfValueWrap');
+    if(wrap) wrap.style.display=type==='buy2get1'?'none':'';
+  },
+
+  toggleAddCouponForm(){
+    const f=document.getElementById('addCouponForm');
+    const showing=f.style.display==='block';
+    f.style.display=showing?'none':'block';
+    if(!showing){['cfCode','cfValue','cfMaxUses','cfExpiry','cfDesc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('cfType').value='percent';document.getElementById('couponFormError').textContent='';}
+  },
+
+  async saveCoupon(){
+    const code=(document.getElementById('cfCode').value||'').trim().toUpperCase();
+    const type=document.getElementById('cfType').value;
+    const value=parseFloat(document.getElementById('cfValue').value);
+    const maxUses=document.getElementById('cfMaxUses').value?parseInt(document.getElementById('cfMaxUses').value):null;
+    const expiry=document.getElementById('cfExpiry').value||null;
+    const desc=document.getElementById('cfDesc').value.trim()||null;
+    const errEl=document.getElementById('couponFormError');
+
+    if(!code){errEl.textContent='Code is required.';return;}
+    if(type!=='buy2get1'){
+      if(!value||value<=0){errEl.textContent='Value must be greater than 0.';return;}
+      if(type==='percent'&&value>100){errEl.textContent='Percentage cannot exceed 100.';return;}
+    }
+
+    errEl.textContent='';
+    const isBuy2Get1=type==='buy2get1';
+    const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes`,{
+      method:'POST',
+      headers:sbH({'Prefer':'return=minimal'}),
+      body:JSON.stringify({code,discount_type:type,discount_value:isBuy2Get1?1:value,max_uses:maxUses,expires_at:expiry?new Date(expiry).toISOString():null,description:desc||(isBuy2Get1?'Buy 2 slots, get 1 free (3 slots required · once per email)':null),is_active:true,uses_count:0}),
+    });
+    if(!res.ok){const t=await res.text();errEl.textContent='Error: '+(JSON.parse(t)?.message||t);return;}
+    this.toggleAddCouponForm();
+    await this.loadData();
+    renderCoupons();
+  },
+
+  async toggleCoupon(code,active){
+    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?code=eq.${encodeURIComponent(code)}`,{
+      method:'PATCH',headers:sbH({'Prefer':'return=minimal'}),body:JSON.stringify({is_active:active}),
+    });
+    await this.loadData();renderCoupons();
+  },
+
+  deleteCoupon(code){
+    this.showModal('🗑️ Delete Coupon',`Delete coupon code <strong>${code}</strong>? This cannot be undone.`,'danger','Delete',async()=>{
+      await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?code=eq.${encodeURIComponent(code)}`,{method:'DELETE',headers:sbH()});
+      await this.loadData();renderCoupons();
+    });
+  },
+
+  /* ── Modal ── */
+  showModal(title,body,type,confirmLabel,callback){
+    document.getElementById('modalTitle').textContent=title;
+    document.getElementById('modalBody').innerHTML=body;
+    const btn=document.getElementById('modalConfirmBtn');
+    btn.textContent=confirmLabel;
+    btn.className='modal-btn '+(type==='danger'?'danger':'confirm');
+    DS.modalCallback=callback;
+    document.getElementById('modalOverlay').style.display='flex';
+  },
+  closeModal(){
+    document.getElementById('modalOverlay').style.display='none';
+    document.getElementById('modalBox').classList.remove('modal-wide');
+    // Restore default modal actions
+    document.getElementById('modalActions').innerHTML=`
+      <button class="modal-btn cancel" onclick="Dashboard.closeModal()">Cancel</button>
+      <button class="modal-btn" id="modalConfirmBtn" onclick="Dashboard.confirmModal()">Confirm</button>`;
+    DS.modalCallback=null;
+  },
+  async confirmModal(){ if(DS.modalCallback){const cb=DS.modalCallback;DS.modalCallback=null;this.closeModal();await cb();} },
+
+  startClock(){
+    const tick=()=>{
+      const now=new Date();
+      document.getElementById('liveClock').textContent=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'});
+    };
+    tick();setInterval(tick,1000);
+  },
+};
+
+/* ──────────────────────────────────────────────────────────────
+   BOOT
+   ────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded',()=>{
+  if(sessionStorage.getItem('staffPin')===CONFIG.STAFF_PIN){
+    document.getElementById('pinGate').style.display='none';
+    document.getElementById('mainDashboard').style.display='block';
+    document.getElementById('tabBar').style.display='flex';
+    Dashboard.init();
+  }
+  document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')Dashboard.checkPin();});
+});
+</script>
+</body>
+</html>

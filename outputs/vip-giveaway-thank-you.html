@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You - Bell Acqua Lake</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Branding Colors */
+            --primary: #0088cc; /* Lake Blue */
+            --primary-glow: rgba(0, 136, 204, 0.4);
+            --secondary: #ffb703; /* Sun Gold / VIP Accent */
+            --secondary-hover: #fb8500;
+            --bg-dark: #0a0f16;
+            --surface-dark: rgba(16, 26, 40, 0.7);
+            --text-light: #f8f9fa;
+            --text-muted: #aab6c2;
+            --border-glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            line-height: 1.6;
+            /* Water ripples background effect */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 136, 204, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(0, 80, 160, 0.2) 0%, transparent 50%);
+        }
+
+        .container {
+            width: 100%;
+            min-height: 100vh;
+            background: var(--surface-dark);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        /* Glassmorphism Wrapper */
+        .glass-panel {
+            width: 100%;
+            min-height: 100vh;
+            padding: 4rem 2rem;
+            display: table;
+            position: relative;
+            z-index: 1;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-glow);
+            filter: blur(40px);
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .icon-success {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .headline {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #ffffff, #88c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sub-headline {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+        
+        .draw-date {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Bonus Box */
+        .bonus-box {
+            background: rgba(255, 183, 3, 0.1);
+            border: 1px dashed var(--secondary);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .bonus-title {
+            font-family: 'Outfit', sans-serif;
+            color: var(--secondary);
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .bonus-text {
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .promo-code {
+            display: inline-block;
+            background: #000;
+            color: var(--secondary);
+            font-family: monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 183, 3, 0.3);
+            letter-spacing: 2px;
+            margin-top: 0.5rem;
+        }
+
+        .btn-action {
+            display: inline-block;
+            width: auto;
+            min-width: 250px;
+            padding: 1.2rem 2rem;
+            background: linear-gradient(135deg, var(--secondary), var(--secondary-hover));
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(255, 183, 3, 0.3);
+            text-decoration: none;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(255, 183, 3, 0.4);
+        }
+
+        .btn-action:active {
+            transform: translateY(1px);
+        }
+
+        .next-steps {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="glass-panel">
+            <div class="content-wrapper" style="display: table-cell; vertical-align: middle; text-align: center;">
+            <div style="max-width: 700px; margin: 0 auto;">
+                <span class="icon-success">🚤</span>
+            <h1 class="headline">You're In!</h1>
+            <p class="sub-headline">Thanks for entering the Bell Acqua Lake VIP Giveaway. We will draw the winner on <span class="draw-date">June 30th</span> and notify you via email.</p>
+            
+            <div class="bonus-box">
+                <div class="bonus-title">🎁 A Special Bonus Just For Entering...</div>
+                <p class="bonus-text">We didn't want to make you wait until the end of the month to hit the water. As a thank you for entering, here is an exclusive promo code you can use right now to <strong>Buy 2 Lessons and Get 1 FREE!</strong> (A $445.50 value for just $297).</p>
+                <div>
+                    <span>Use Code: </span><span class="promo-code">VIPBONUS</span>
+                </div>
+            </div>
+
+            <a href="https://meek-duckanoo-53e84b.netlify.app/bell-acqua-booking.html" class="btn-action" target="_blank">Book Your Lessons Now</a>
+            
+            <p class="next-steps">Keep an eye on your inbox—we just sent you a confirmation email with all the details!</p>
+            </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

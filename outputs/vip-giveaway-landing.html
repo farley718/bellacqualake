@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bell Acqua Lake VIP Membership Giveaway</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Branding Colors */
+            --primary: #0088cc; /* Lake Blue */
+            --primary-glow: rgba(0, 136, 204, 0.4);
+            --secondary: #ffb703; /* Sun Gold / VIP Accent */
+            --secondary-hover: #fb8500;
+            --bg-dark: #0a0f16;
+            --surface-dark: rgba(16, 26, 40, 0.7);
+            --text-light: #f8f9fa;
+            --text-muted: #aab6c2;
+            --border-glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        .logo {
+            display: block;
+            max-width: 200px;
+            margin-bottom: 1.5rem;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            line-height: 1.6;
+            /* Water ripples background effect */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 136, 204, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(0, 80, 160, 0.2) 0%, transparent 50%);
+        }
+
+        .page-wrapper {
+            width: 100%;
+            min-height: 100vh;
+            background: var(--surface-dark);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: table;
+        }
+
+        .page-inner {
+            display: table-cell;
+            vertical-align: middle;
+            padding: 3rem 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        @media (max-width: 860px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+            }
+        }
+
+        /* Copy Section */
+        .copy-section {
+            padding-right: 1rem;
+        }
+
+        .pre-headline {
+            font-family: 'Outfit', sans-serif;
+            color: var(--secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+            background: rgba(255, 183, 3, 0.1);
+            padding: 0.4rem 1rem;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 183, 3, 0.2);
+        }
+
+        .headline {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #ffffff, #88c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sub-headline {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .body-copy {
+            margin-bottom: 2rem;
+        }
+
+        .body-copy p {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+
+        .value-tag {
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        /* Perks List */
+        .perks-list {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .perks-list li {
+            background: var(--surface-dark);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-left: 3px solid var(--primary);
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s ease, background 0.2s;
+        }
+
+        .perks-list li:hover {
+            transform: translateX(5px);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .perks-list li span.icon {
+            font-size: 1.5rem;
+        }
+
+        /* Glassmorphism Form */
+        .form-glass {
+            background: var(--surface-dark);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
+                        inset 0 1px 0 rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        /* Glow effect behind form */
+        .form-glass::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            bottom: -20px;
+            background: var(--primary-glow);
+            filter: blur(40px);
+            z-index: -1;
+            border-radius: 30px;
+            opacity: 0.5;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .form-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 1rem 1.2rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 136, 204, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, var(--secondary), var(--secondary-hover));
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(255, 183, 3, 0.3);
+            margin-top: 1rem;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(255, 183, 3, 0.4);
+        }
+
+        .btn-submit:active {
+            transform: translateY(1px);
+        }
+
+        .privacy-note {
+            text-align: center;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 1.5rem;
+        }
+        
+        .draw-date {
+            color: var(--primary);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-wrapper">
+    <div class="page-inner">
+    <div class="container">
+        
+        <!-- Left: Copy & Value Prop -->
+        <div class="copy-section">
+            <img src="https://bellacqualake.com/wp-content/uploads/2024/01/cropped-BellAcquaLakeLogo_800px.png" alt="Bell Acqua Lake" class="logo">
+            <span class="pre-headline">Calling all water skiers...</span>
+            <h1 class="headline">Win the Ultimate 2-Week VIP Experience!</h1>
+            <p class="sub-headline">We're giving away a 2-Week VIP Membership to one lucky skier. Enjoy skiing at the VIP rate, a dedicated driver, and a professional coach!</p>
+            
+            <div class="body-copy">
+                <p>Ready to take your skiing to the next level?</p>
+                <p>For the entire month of June, we are accepting entries for the ultimate water skiing giveaway. One lucky winner will receive our Experience VIP Membership (<span class="value-tag">valued at $2600</span>) for two full weeks.</p>
+            </div>
+
+            <ul class="perks-list">
+                <li>
+                    <span class="icon">🚤</span>
+                    <div><strong>Ski at the VIP rate of 70% off</strong> — just $23 per run for two weeks!</div>
+                </li>
+                <li>
+                    <span class="icon">🏆</span>
+                    <div><strong>VIP Treatment</strong> with your own dedicated driver and coach on hand</div>
+                </li>
+                <li>
+                    <span class="icon">🌊</span>
+                    <div>Access to the pristine water at <strong>Bell Acqua Lake</strong></div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Right: Glassmorphism Form -->
+        <div class="form-wrapper">
+            <div class="form-glass">
+                <div class="form-header">
+                    <h3>Enter to Win</h3>
+                    <p>We will draw the winner and announce it on <span class="draw-date">June 30th!</span></p>
+                </div>
+                
+                <form id="giveawayForm">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" name="first_name" class="form-control" placeholder="Enter your first name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-control" placeholder="Enter your email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" class="form-control" placeholder="(555) 000-0000" required>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Enter the Giveaway Now</button>
+                    
+                    <div class="privacy-note">
+                        Your information is secure. We will never sell your data.
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+    </div>
+    </div>
+
+    <script>
+        document.getElementById('giveawayForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var btn = this.querySelector('.btn-submit');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            var data = {
+                first_name: document.getElementById('firstName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value
+            };
+
+            fetch('https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/868af176-1c56-4faa-80ce-9f5a57586f12', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(function() {
+                window.location.href = 'https://ski.bellacqualake.com/thank-you-membership-giveaway';
+            })
+            .catch(function() {
+                // Redirect even if webhook fails so the user isn't stuck
+                window.location.href = 'https://ski.bellacqualake.com/thank-you-membership-giveaway';
+            });
+        });
+    </script>
+
+</body>
+</html>
