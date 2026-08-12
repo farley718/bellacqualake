@@ -302,7 +302,9 @@
 <div class="tab-bar" id="tabBar" style="display:none;">
   <button class="tab-btn active" onclick="Dashboard.setTab('calendar')">📅 Calendar</button>
   <button class="tab-btn" onclick="Dashboard.setTab('customers')">👥 Customers</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('members')">🏅 Members</button>
   <button class="tab-btn" onclick="Dashboard.setTab('coupons')">🎟️ Coupons</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('referrals')">🎁 Referrals</button>
 </div>
 
 <!-- Dashboard -->
@@ -441,6 +443,84 @@
     </div>
   </div>
 
+  <!-- ─── Referrals Tab ─── -->
+  <div class="tab-content" id="tab-referrals">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Affiliates & Referral Credits</div>
+        <div style="font-size:.8rem;color:var(--gray);">Friends get 20% off their first booking · affiliates earn a 20% credit coupon per booking. Credits redeem automatically as coupons.</div>
+      </div>
+      <div class="coupons-grid" id="referralsGrid">
+        <div class="loading-row" style="grid-column:1/-1;"><div class="loading-spinner"></div> Loading referrals…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Members Tab ─── -->
+  <div class="tab-content" id="tab-members">
+    <div class="coupons-wrap" style="max-width: 1000px; margin: 0 auto;">
+      <div class="coupons-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Manage Members</div>
+      </div>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+        
+        <!-- Left: Add Member Form -->
+        <div class="coupon-add-form" style="display:block; margin-bottom:0;">
+          <div class="coupon-form-title">Add New Member</div>
+          <div class="coupon-form-grid" style="grid-template-columns: 1fr; gap: 16px;">
+            <div class="form-field">
+              <label>First Name *</label>
+              <input type="text" id="amFirst" placeholder="First Name" />
+            </div>
+            <div class="form-field">
+              <label>Last Name *</label>
+              <input type="text" id="amLast" placeholder="Last Name" />
+            </div>
+            <div class="form-field">
+              <label>Email Address *</label>
+              <input type="email" id="amEmail" placeholder="member@email.com" />
+            </div>
+            <div class="form-field">
+              <label>Temporary Password *</label>
+              <div style="display:flex;gap:10px;">
+                <input type="text" id="amPass" placeholder="Enter password" />
+                <button class="btn-outline-sm" onclick="Dashboard.generateTempPass()">Generate Random</button>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Membership Start (optional)</label>
+              <input type="date" id="amStart" />
+            </div>
+            <div class="form-field">
+              <label>Membership End (optional)</label>
+              <input type="date" id="amEnd" />
+            </div>
+          </div>
+          <div class="coupon-form-actions" style="margin-top:20px;">
+            <button class="btn-primary" onclick="Dashboard.addMember()">Create Member</button>
+          </div>
+          <div id="amError" style="margin-top:12px;font-size:.85rem;color:var(--red);min-height:18px;font-weight:600;"></div>
+        </div>
+
+        <!-- Right: Member List -->
+        <div class="customers-table-wrap" style="box-shadow:var(--shadow); border-radius:var(--radius); overflow:hidden;">
+          <div style="background:var(--navy-dark); color:white; padding:12px 16px; font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Current Members</span>
+            <button class="btn-outline-sm" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:white; padding:4px 8px; font-size:.7rem;" onclick="Dashboard.loadMembers()">↻ Refresh</button>
+          </div>
+          <div style="max-height: 480px; overflow-y:auto; background:white;">
+            <table class="customers-table" style="width:100%; border-collapse:collapse; font-size:.82rem;">
+              <tbody id="membersTableBody">
+                <tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);">Loading members...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /mainDashboard -->
 
 <!-- Modal -->
@@ -475,6 +555,8 @@ const DS = {
   blockedDates:   {},  // dateKey → { date, reason }
   blockedSlots:   {},  // dateKey → Set<slotId>  (individual slot blocks)
   coupons:        [],
+  affiliates:     [],
+  affReferrals:   [],
   bookingsByDate: {},
   viewYear:       new Date().getFullYear(),
   viewMonth:      new Date().getMonth(),
@@ -518,16 +600,73 @@ function waiverBadge(s){
    DATA
    ────────────────────────────────────────────────────────────── */
 async function fetchAll(){
-  const [bRes,wRes,blRes,bsRes,cpRes] = await Promise.all([
+  const [bRes,wRes,blRes,bsRes,cpRes,mbRes,afRes,arRes] = await Promise.all([
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?select=id,first_name,last_name,email,phone,party_size,total_amount,status,slots,booking_type,created_at&order=created_at.desc`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?select=id,booking_id,guest_name,guest_email,status,signed_at,waiver_ref&order=guest_index.asc`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date,reason,blocked_by,created_at`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?select=id,date,slot_id,reason`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?select=*&order=created_at.desc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/member_bookings?select=*`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/affiliates_public?select=*&order=created_at.desc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/affiliate_referrals?select=*&order=created_at.desc`,{headers:sbH()}),
   ]);
-  DS.bookings     = bRes.ok  ? await bRes.json()  : [];
+  let baseBookings = bRes.ok  ? await bRes.json()  : [];
   DS.waivers      = wRes.ok  ? await wRes.json()  : [];
   DS.coupons      = cpRes.ok ? await cpRes.json() : [];
+  DS.affiliates   = (afRes && afRes.ok) ? await afRes.json() : [];
+  DS.affReferrals = (arRes && arRes.ok) ? await arRes.json() : [];
+
+  const memberGroups = {};
+  if(mbRes && mbRes.ok){
+    const mbRows = await mbRes.json();
+    mbRows.filter(r => r.status === 'confirmed').forEach(r=>{
+      const gkey = `${r.booking_date}_${r.member_id}`;
+      if(!memberGroups[gkey]){
+        memberGroups[gkey] = {
+          id: 'MB-' + r.booking_date.replace(/-/g,'') + '-' + r.member_id.substring(0,4).toUpperCase(),
+          first_name: r.member_name,
+          last_name: '(Member)',
+          email: r.member_email,
+          phone: '',
+          party_size: 1,
+          total_amount: 0,
+          status: r.status,
+          booking_type: 'member',
+          created_at: r.created_at,
+          slots: [],
+          raw_ids: []
+        };
+      }
+      memberGroups[gkey].raw_ids.push(r.id);
+      
+      // r.slot_start could be "13:30" (from member dash) or "01:30 PM"
+      let sid = '';
+      if(r.slot_start) {
+        if(r.slot_start.match(/AM|PM/i)) {
+          const match = r.slot_start.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+          if(match){
+             let h=parseInt(match[1],10); const m=match[2]; const ap=match[3].toUpperCase();
+             if(ap==='PM'&&h<12)h+=12; if(ap==='AM'&&h===12)h=0;
+             sid=`${String(h).padStart(2,'0')}${m}`;
+          }
+        } else {
+          // It's 24-hour time like "13:30"
+          const match = r.slot_start.match(/^(\d{1,2}):(\d{2})/);
+          if(match) {
+            sid = `${String(match[1]).padStart(2,'0')}${match[2]}`;
+          }
+        }
+      }
+      
+      memberGroups[gkey].slots.push({
+        date: r.booking_date,
+        id: `${r.booking_date}__${sid}`,
+        label: `${r.slot_start} - ${r.slot_end}`
+      });
+    });
+  }
+
+  DS.bookings = baseBookings.concat(Object.values(memberGroups));
 
   DS.blockedDates = {};
   if(blRes.ok){
@@ -658,9 +797,10 @@ function renderDayDetail(dateKey){
   const waiverMap={};
   DS.waivers.forEach(w=>{if(!waiverMap[w.booking_id])waiverMap[w.booking_id]=[];waiverMap[w.booking_id].push(w);});
 
-  // Slot map
+  // Slot map (B/I and SRL only — member bookings occupy separate :30/:45 slots)
   const slotBookingMap={};
   bksAll.forEach(b=>{
+    if(b.booking_type==='member')return;
     (b.slots||[]).forEach(s=>{
       if(s.date!==dateKey)return;
       const rawId=s.id||'';
@@ -730,7 +870,9 @@ function renderDayDetail(dateKey){
   bksAll.filter(b=>!b.booking_type||b.booking_type==='beginner_intermediate').forEach(b=>{
     (b.slots||[]).forEach(s=>{
       if(s.date!==dateKey)return;
-      const rawId=s.id||'';const sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
+      const rawId=s.id||'';let sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
+      // Normalize to :00 — legacy bookings may have :30 offsets
+      if(sid.length===4&&sid.slice(2)!=='00') sid=sid.slice(0,2)+'00';
       if(!biSlotMap[sid])biSlotMap[sid]=[];biSlotMap[sid].push(b);
     });
   });
@@ -741,6 +883,16 @@ function renderDayDetail(dateKey){
       if(s.date!==dateKey)return;
       const rawId=s.id||'';const sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
       if(!srlSlotMap[sid])srlSlotMap[sid]=[];srlSlotMap[sid].push(b);
+    });
+  });
+
+  // ── Member slot booking map
+  const memberSlotMap={};
+  bksAll.filter(b=>b.booking_type==='member').forEach(b=>{
+    (b.slots||[]).forEach(s=>{
+      if(s.date!==dateKey)return;
+      const rawId=s.id||'';const sid=rawId.includes('__')?rawId.split('__')[1]:rawId;
+      if(!memberSlotMap[sid])memberSlotMap[sid]=[];memberSlotMap[sid].push(b);
     });
   });
 
@@ -782,6 +934,24 @@ function renderDayDetail(dateKey){
       <span class="tl-time">${slot.label}</span><div class="tl-name">${isPastSlot?'Past':'Open'}</div></div>`;
   }).join('');
 
+  // ── Member Timeline (15-min slots — 2 per hour at :30 and :45)
+  const memberSlots=[];
+  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++){
+    memberSlots.push({id:`${String(h).padStart(2,'0')}30`,label:`${fmt12(h,30)} - ${fmt12(h,45)}`,hour:h});
+    memberSlots.push({id:`${String(h).padStart(2,'0')}45`,label:`${fmt12(h,45)} - ${fmt12(h+1,0)}`,hour:h});
+  }
+  const tlMember=memberSlots.map(slot=>{
+    const bfs=memberSlotMap[slot.id]||[];
+    const isPastSlot=isPastDay||(isToday&&now.getHours()>slot.hour);
+    if(bfs.length>0){
+      const name=bfs[0].first_name||'Member';
+      return `<div class="tl-slot tl-booked" style="background:var(--navy);border-color:var(--navy-dark);color:white;" onclick="Dashboard.scrollToBooking('${bfs[0].id}')" title="${bfs.map(b=>`${b.first_name} ${b.last_name}`).join(', ')}">
+        <span class="tl-time" style="color:rgba(255,255,255,0.7);">${slot.label}</span><div class="tl-name" style="color:white;">${name}</div></div>`;
+    }
+    return `<div class="tl-slot ${isPastSlot?'tl-past':'tl-free'}">
+      <span class="tl-time">${slot.label}</span><div class="tl-name">${isPastSlot?'Past':'Open'}</div></div>`;
+  }).join('');
+
   // Cards
   let cards='';
   if(!bks.length){
@@ -809,6 +979,8 @@ function renderDayDetail(dateKey){
         :`<div style="font-size:.78rem;color:var(--gray);padding:6px 0;">No waiver records found.</div>`;
       const typeBadge=b.booking_type==='ski_ride_lesson'
         ?`<span style="font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:20px;background:#fff3e8;color:#ea580c;border:1px solid #fcc;white-space:nowrap;">🏄 Ski Ride</span>`
+        :b.booking_type==='member'
+        ?`<span style="font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--navy);color:white;border:1px solid var(--navy-dark);white-space:nowrap;">🏅 Member</span>`
         :`<span style="font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--blue-light);color:var(--navy);border:1px solid #b3ddf0;white-space:nowrap;">🌊 B/I</span>`;
       return `<div class="booking-card" id="bk-${b.id}">
         <div class="booking-card-header" onclick="Dashboard.toggleCard('${b.id}')">
@@ -849,6 +1021,10 @@ function renderDayDetail(dateKey){
     <div class="timeline-wrap">
       <div class="timeline-title">🌊 Beginner / Intermediate Slots (30 min)</div>
       <div class="timeline">${tl}</div>
+    </div>
+    <div class="timeline-wrap">
+      <div class="timeline-title">🏅 Member Calendar (15 min)</div>
+      <div class="timeline" style="grid-template-columns:repeat(auto-fill,minmax(70px,1fr));">${tlMember}</div>
     </div>
     <div class="timeline-wrap">
       <div class="timeline-title">🏄 Ski Ride Lesson Slots (15 min)</div>
@@ -959,6 +1135,47 @@ function renderCoupons(){
   }).join('');
 }
 
+function renderReferrals(){
+  const grid=document.getElementById('referralsGrid');
+  if(!DS.affiliates.length){
+    grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🎁</div><div style="font-weight:600;margin-bottom:4px;">No affiliates yet</div><div style="font-size:.82rem;color:var(--gray);">When someone joins the referral program, they'll show up here with their code and referrals.</div></div>`;
+    return;
+  }
+  grid.innerHTML=DS.affiliates.map(a=>{
+    const refs=DS.affReferrals.filter(r=>r.affiliate_id===a.id);
+    const creditFor=code=>DS.coupons.find(c=>c.code===code);
+    const usedCount=refs.filter(r=>{const c=creditFor(r.credit_coupon_code);return c&&c.max_uses&&(c.uses_count||0)>=c.max_uses;}).length;
+    const joinedStr=new Date(a.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const refRows=refs.map(r=>{
+      const c=creditFor(r.credit_coupon_code);
+      const used=c&&c.max_uses&&(c.uses_count||0)>=c.max_uses;
+      const dead=r.status==='void'||(c&&!c.is_active);
+      const pill=dead?'<span style="color:var(--red);font-weight:700;">void</span>':used?'<span style="color:var(--gray);font-weight:700;">used</span>':'<span style="color:var(--green);font-weight:700;">available</span>';
+      const when=new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      return `<div class="info-row" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>👤 ${r.referred_name||r.referred_email} · ${when} · ${r.booking_id}</span>
+        <span style="font-family:monospace;">${r.credit_coupon_code||'—'} ${pill}</span>
+      </div>`;
+    }).join('');
+    return `<div class="coupon-card${!a.is_active?' inactive':''}">
+      <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-weight:800;font-family:'Montserrat',sans-serif;font-size:.95rem;color:var(--navy-dark);">${a.name}</div>
+          <div style="font-size:.78rem;color:var(--gray);word-break:break-all;">${a.email}</div>
+        </div>
+        <button class="toggle-badge ${a.is_active?'active-badge':'inactive-badge'}" onclick="Dashboard.toggleAffiliate('${a.id}',${!a.is_active})">${a.is_active?'Active':'Inactive'}</button>
+      </div>
+      <div class="coupon-value" style="font-size:.95rem;">Code: <span style="font-family:monospace;letter-spacing:1px;">${a.code}</span></div>
+      <div class="coupon-meta">
+        <div class="info-row">📊 ${refs.length} referral${refs.length===1?'':'s'} · ${usedCount} credit${usedCount===1?'':'s'} used</div>
+        <div class="info-row">🎁 Friend gets ${parseFloat(a.friend_discount_pct)}% · earns ${parseFloat(a.reward_pct)}% credit</div>
+        <div class="info-row">📅 Joined: ${joinedStr}</div>
+        ${refRows?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">${refRows}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 /* ──────────────────────────────────────────────────────────────
    DASHBOARD CONTROLLER
    ────────────────────────────────────────────────────────────── */
@@ -997,6 +1214,8 @@ const Dashboard = {
       if(DS.selectedDate) renderDayDetail(DS.selectedDate);
       if(DS.activeTab==='customers') renderCustomers();
       if(DS.activeTab==='coupons') renderCoupons();
+      if(DS.activeTab==='members') this.loadMembers();
+      if(DS.activeTab==='referrals') renderReferrals();
     }catch(e){console.error('Load error:',e);}
     document.getElementById('refreshIcon').className='';
     btn.classList.remove('refreshing');
@@ -1006,11 +1225,13 @@ const Dashboard = {
 
   setTab(tab){
     DS.activeTab=tab;
-    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','coupons'][i]===tab));
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals'][i]===tab));
     document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if(tab==='customers') renderCustomers();
     if(tab==='coupons')   renderCoupons();
+    if(tab==='members')   this.loadMembers();
+    if(tab==='referrals') renderReferrals();
   },
 
   selectDate(key){
@@ -1232,21 +1453,35 @@ const Dashboard = {
       'danger',
       'Cancel Booking',
       async ()=>{
-        const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(bookingId)}`,{
-          method:'PATCH',
-          headers:sbH({'Prefer':'return=representation'}),
-          body:JSON.stringify({status:'cancelled'}),
-        });
-        if(!res.ok){
-          const t=await res.text();let msg='Unknown error.';
-          try{msg=JSON.parse(t)?.message||t;}catch(_){}
-          alert(`❌ Could not cancel booking.\n\nError: ${msg}\n\nIf this keeps happening, run this SQL in Supabase:\nCREATE POLICY "anon_update_bookings" ON public.bookings FOR UPDATE TO anon USING (true) WITH CHECK (true);`);
-          return;
-        }
-        const updated=await res.json();
-        if(!updated||updated.length===0){
-          alert('❌ Cancellation failed — the booking was not updated in the database.\n\nPlease run this SQL in your Supabase SQL Editor and try again:\n\nCREATE POLICY "anon_update_bookings"\nON public.bookings\nFOR UPDATE TO anon\nUSING (true)\nWITH CHECK (true);');
-          return;
+        if (bookingId.startsWith('MB-')) {
+           const mbk = DS.bookings.find(b => b.id === bookingId);
+           if (mbk && mbk.raw_ids) {
+              const ops = mbk.raw_ids.map(rid => 
+                 fetch(`${CONFIG.SUPABASE_URL}/rest/v1/member_bookings?id=eq.${encodeURIComponent(rid)}`,{
+                    method:'PATCH',
+                    headers:sbH({'Prefer':'return=representation'}),
+                    body:JSON.stringify({status:'cancelled'})
+                 })
+              );
+              await Promise.all(ops);
+           }
+        } else {
+          const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(bookingId)}`,{
+            method:'PATCH',
+            headers:sbH({'Prefer':'return=representation'}),
+            body:JSON.stringify({status:'cancelled'}),
+          });
+          if(!res.ok){
+            const t=await res.text();let msg='Unknown error.';
+            try{msg=JSON.parse(t)?.message||t;}catch(_){}
+            alert(`❌ Could not cancel booking.\n\nError: ${msg}\n\nIf this keeps happening, run this SQL in Supabase:\nCREATE POLICY "anon_update_bookings" ON public.bookings FOR UPDATE TO anon USING (true) WITH CHECK (true);`);
+            return;
+          }
+          const updated=await res.json();
+          if(!updated||updated.length===0){
+            alert('❌ Cancellation failed — the booking was not updated in the database.\n\nPlease run this SQL in your Supabase SQL Editor and try again:\n\nCREATE POLICY "anon_update_bookings"\nON public.bookings\nFOR UPDATE TO anon\nUSING (true)\nWITH CHECK (true);');
+            return;
+          }
         }
         await this.loadData();
         if(DS.selectedDate) this.selectDate(DS.selectedDate);
@@ -1459,6 +1694,135 @@ const Dashboard = {
     this.showModal('🗑️ Delete Coupon',`Delete coupon code <strong>${code}</strong>? This cannot be undone.`,'danger','Delete',async()=>{
       await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?code=eq.${encodeURIComponent(code)}`,{method:'DELETE',headers:sbH()});
       await this.loadData();renderCoupons();
+    });
+  },
+
+  /* ── Affiliates ── */
+  async toggleAffiliate(id,active){
+    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/affiliate_set_active`,{
+      method:'POST',headers:sbH(),body:JSON.stringify({p_id:id,p_active:active}),
+    });
+    await this.loadData();renderReferrals();
+  },
+
+  /* ── Add Member & Member List ── */
+  generateTempPass(){
+    const p = Math.random().toString(36).slice(-6) + Math.floor(Math.random()*10) + '!';
+    document.getElementById('amPass').value = p;
+  },
+  async addMember(){
+    const fn = document.getElementById('amFirst').value.trim();
+    const ln = document.getElementById('amLast').value.trim();
+    const em = document.getElementById('amEmail').value.trim();
+    const pw = document.getElementById('amPass').value.trim();
+    const mStart = document.getElementById('amStart').value;
+    const mEnd = document.getElementById('amEnd').value;
+    const errEl = document.getElementById('amError');
+    if(!fn || !ln || !em || !pw){ errEl.style.color='var(--red)'; errEl.textContent='All required fields must be filled.'; return; }
+    errEl.style.color = 'var(--navy)';
+    errEl.textContent = 'Creating member...';
+    try {
+      const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST', headers: sbH(),
+        body: JSON.stringify({ email: em, password: pw, data: { first_name: fn, last_name: ln, full_name: `${fn} ${ln}`, membership_start: mStart||null, membership_end: mEnd||null } })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      document.getElementById('amFirst').value = ''; document.getElementById('amLast').value = '';
+      document.getElementById('amEmail').value = ''; document.getElementById('amPass').value = '';
+      document.getElementById('amStart').value = ''; document.getElementById('amEnd').value = '';
+      errEl.style.color = 'var(--green)';
+      errEl.textContent = 'Member created successfully! They can now log in.';
+      setTimeout(()=> { errEl.textContent=''; errEl.style.color='var(--red)'; }, 5000);
+      this.loadMembers();
+    } catch(ex) {
+      errEl.style.color = 'var(--red)';
+      try { errEl.textContent = JSON.parse(ex.message).msg || 'Failed to create member'; }
+      catch { errEl.textContent = ex.message; }
+    }
+  },
+  async loadMembers() {
+    const tbody = document.getElementById('membersTableBody');
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);"><div class="loading-spinner"></div> Loading...</td></tr>';
+    try {
+      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=id,email,first_name,last_name,membership_start,membership_end&order=created_at.desc`, { headers: sbH() });
+      if(!res.ok) throw new Error();
+      const members = await res.json();
+      if(!members.length) {
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);">No members found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = members.map(m => {
+        const name = `${m.first_name||''} ${m.last_name||''}`.trim() || 'Unknown';
+        const start = m.membership_start ? new Date(m.membership_start).toLocaleDateString() : 'N/A';
+        const end = m.membership_end ? new Date(m.membership_end).toLocaleDateString() : 'N/A';
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:700;color:var(--navy-dark);">${name}</div>
+              <div style="font-size:.75rem;color:var(--gray);margin-top:2px;">${m.email}</div>
+              <div style="font-size:.7rem;margin-top:6px;font-weight:600;color:var(--navy);">Active: ${start} – ${end}</div>
+            </td>
+            <td style="text-align:right; vertical-align:middle; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+              <button class="btn-outline-sm" onclick="Dashboard.editMemberDates('${m.id}', '${m.membership_start||''}', '${m.membership_end||''}', '${name}')">Edit Dates</button>
+              <button class="btn-outline-sm" style="color:var(--red);border-color:#f5c6c0;" onclick="Dashboard.resetMemberPassword('${m.id}', '${name}')">Reset Password</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--red);">Failed to load members.<br/>Please run the SQL snippet in Supabase.</td></tr>';
+    }
+  },
+  resetMemberPassword(id, name) {
+    this.showModal(`🔑 Reset Password: ${name}`,
+      `<div style="margin-bottom:12px;font-size:.85rem;color:var(--gray);">Enter a new password for <strong>${name}</strong>. Share it with them directly after resetting.</div>
+       <div class="form-field">
+         <label style="font-size:.72rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">New Password *</label>
+         <input type="text" id="rpNewPass" placeholder="Min. 6 characters" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.9rem;font-family:'Inter',sans-serif;outline:none;" />
+       </div>
+       <div id="rpError" style="margin-top:6px;font-size:.82rem;color:var(--red);min-height:16px;"></div>`,
+      'confirm', 'Reset Password',
+      async () => {
+        const newPass = document.getElementById('rpNewPass')?.value?.trim();
+        if (!newPass || newPass.length < 6) {
+          alert('Password must be at least 6 characters.');
+          return;
+        }
+        const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/admin_update_user_password`, {
+          method: 'POST',
+          headers: sbH(),
+          body: JSON.stringify({ p_user_id: id, p_new_password: newPass, p_staff_pin: CONFIG.STAFF_PIN }),
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          let msg = 'Failed to reset password.';
+          try { msg = JSON.parse(t)?.message || t; } catch(_) {}
+          alert(`❌ ${msg}`);
+          return;
+        }
+        alert(`✅ Password for ${name} has been reset successfully.`);
+      }
+    );
+  },
+
+  editMemberDates(id, start, end, name) {
+    this.showModal(`Edit Dates: ${name}`, `
+      <div style="margin-bottom:12px;">
+        <label style="font-size:.75rem;font-weight:700;color:var(--gray);display:block;margin-bottom:4px;">Membership Start</label>
+        <input type="date" id="emStart" value="${start}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;" />
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:.75rem;font-weight:700;color:var(--gray);display:block;margin-bottom:4px;">Membership End</label>
+        <input type="date" id="emEnd" value="${end}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;" />
+      </div>
+    `, 'confirm', 'Save Dates', async () => {
+      const s = document.getElementById('emStart').value;
+      const e = document.getElementById('emEnd').value;
+      await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?id=eq.${id}`, {
+        method: 'PATCH', headers: sbH({'Prefer':'return=minimal'}),
+        body: JSON.stringify({ membership_start: s||null, membership_end: e||null })
+      });
+      this.loadMembers();
     });
   },
 

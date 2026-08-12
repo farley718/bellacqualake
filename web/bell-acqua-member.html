@@ -110,6 +110,8 @@
     .slot-btn:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-light); }
     .slot-btn.mine   { background: var(--green-light); border-color: var(--green); color: #1a7a3f; cursor: pointer; }
     .slot-btn.mine:hover { background: #c5f0d5; }
+    .slot-btn.pending { background: var(--gold-light); border-color: var(--gold); color: #9c6500; }
+    .slot-btn.pending:hover { background: #ffeac2; }
     .slot-btn.taken  { background: var(--gray-light); color: #d1d5db; cursor: not-allowed; border-color: transparent; }
     .slot-btn.locked { background: var(--gray-light); color: #9ca3af; cursor: not-allowed; border-color: transparent; font-size: .65rem; }
     .slot-empty    { padding: 40px 20px; text-align: center; color: var(--gray); font-size: .88rem; line-height: 1.6; }
@@ -131,6 +133,14 @@
     #toast.show    { opacity: 1; }
     #toast.success { background: var(--green); }
     #toast.error   { background: var(--red); }
+
+    /* ── Modals ── */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13,33,55,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+    .modal-content { background: white; border-radius: 16px; width: 100%; max-width: 420px; padding: 32px; box-shadow: var(--shadow-md); }
+    .modal-content h3 { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; color: var(--navy-dark); margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 28px; }
+    .btn-cancel { flex: 1; padding: 12px; background: white; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: all .2s; }
+    .btn-cancel:hover { background: var(--gray-light); }
   </style>
 </head>
 <body>
@@ -164,8 +174,12 @@
       <div class="hdr-title">Bell Acqua Lake</div>
       <span class="hdr-badge">Member</span>
     </div>
-    <div class="hdr-right">
-      <span class="hdr-name" id="memberName"></span>
+    <div class="hdr-right" style="display:flex; align-items:center;">
+      <div style="display:flex; flex-direction:column; align-items:flex-end;">
+        <span class="hdr-name" id="memberName"></span>
+        <div id="membershipStatus" style="font-size: .75rem; color: var(--navy); margin-top:2px;"></div>
+      </div>
+      <button class="btn-logout" onclick="toggleSettings(true)" style="margin-left: 12px; margin-right: 8px;">⚙️ Settings</button>
       <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
     </div>
   </header>
@@ -199,12 +213,32 @@
       <div class="card">
         <div class="card-head"><div class="card-title">Available Slots</div></div>
         <div id="slotPanel">
-          <div class="slot-empty">← Pick a date on the calendar to see available 30-minute slots.</div>
+          <div class="slot-empty">← Pick a date on the calendar to see available 15-minute slots.</div>
         </div>
       </div>
 
     </div>
   </main>
+</div>
+
+<div id="settingsModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>Profile Settings</h3>
+    <form id="settingsForm" onsubmit="handleSaveSettings(event)">
+      <div class="field"><label>First Name</label><input type="text" id="setFirstName" required/></div>
+      <div class="field"><label>Last Name</label><input type="text" id="setLastName" required/></div>
+      <div class="field"><label>Phone Number</label><input type="tel" id="setPhone"/></div>
+      <div class="field"><label>Address</label><input type="text" id="setAddress"/></div>
+      
+      <h4 style="margin-top:24px; margin-bottom:12px; font-size:1rem; color:var(--navy-dark); font-family:'Montserrat', sans-serif;">Change Password</h4>
+      <div class="field"><label>New Password (leave blank to keep current)</label><input type="password" id="setPassword" placeholder="••••••••"/></div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="toggleSettings(false)">Cancel</button>
+        <button type="submit" class="btn-primary" id="btnSaveSettings" style="flex:1;">Save Profile</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -217,10 +251,14 @@ const CONFIG = {
   NOTIFY_URL:    'https://euznpkrkkaieykznztho.supabase.co/functions/v1/notify-member-booking',
   DAY_START:     { h: 7,  m: 30 },  // 7:30 AM
   DAY_END_LAST:  { h: 20, m: 0  },  // end boundary 8:00 PM (last slot starts at 7:30 PM)
-  SLOT_MINS:     30,
+  SLOT_MINS:     15,
   MAX_PER_DAY:   2,
   WINDOW_MINS:   120,
 };
+
+function getLADate() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+}
 
 /* ── STATE ─────────────────────────────────────────────────── */
 const S = {
@@ -229,8 +267,9 @@ const S = {
   calYear:       null,
   calMonth:      null,
   selectedDate:  null,
-  takenSlots:    [],   // slot_start strings booked by others (confirmed)
+  takenSlots:    [],   // array of {slot, name} booked by others (confirmed)
   myDayBookings: [],   // { id, slot_start } for current user on selected date
+  pendingSlots:  [],   // array of start times selected but not yet saved
   upcoming:      [],
 };
 
@@ -317,12 +356,38 @@ function handleLogout() {
 }
 
 /* ── APP START ─────────────────────────────────────────────── */
-function startApp() {
+async function startApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  const name = S.user.user_metadata?.full_name || S.user.email;
+  
+  // Fetch profile to get membership dates
+  try {
+    const pRes = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?id=eq.${S.user.id}`, {
+      headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${S.token}` }
+    });
+    const profiles = await pRes.json();
+    S.profile = profiles[0] || {};
+  } catch(e) {
+    S.profile = {};
+  }
+
+  const md = S.user.user_metadata || {};
+  const name = (md.first_name ? `${md.first_name} ${md.last_name || ''}` : md.full_name) || S.user.email;
   document.getElementById('memberName').textContent = name;
-  const now = new Date();
+  
+  // Display membership dates
+  const mStatusEl = document.getElementById('membershipStatus');
+  if(mStatusEl) {
+    if(S.profile && (S.profile.membership_start || S.profile.membership_end)) {
+      const s = S.profile.membership_start ? new Date(S.profile.membership_start + 'T00:00:00').toLocaleDateString() : 'N/A';
+      const e = S.profile.membership_end ? new Date(S.profile.membership_end + 'T00:00:00').toLocaleDateString() : 'N/A';
+      mStatusEl.innerHTML = `Active: <strong>${s} – ${e}</strong>`;
+    } else {
+      mStatusEl.textContent = 'No membership dates set';
+    }
+  }
+
+  const now = getLADate();
   S.calYear  = now.getFullYear();
   S.calMonth = now.getMonth();
   renderCalendar();
@@ -345,7 +410,10 @@ function renderCalendar() {
   const grid = document.getElementById('calGrid');
   grid.innerHTML = DOW.map(d => `<div class="cal-dow">${d}</div>`).join('');
 
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = getLADate(); today.setHours(0,0,0,0);
+  const mStart = (S.profile && S.profile.membership_start) ? new Date(S.profile.membership_start + 'T00:00:00') : null;
+  const mEnd = (S.profile && S.profile.membership_end) ? new Date(S.profile.membership_end + 'T23:59:59') : null;
+
   const firstDow = new Date(S.calYear, S.calMonth, 1).getDay();
   for (let i = 0; i < firstDow; i++) grid.insertAdjacentHTML('beforeend', '<div></div>');
 
@@ -354,10 +422,16 @@ function renderCalendar() {
     const date = new Date(S.calYear, S.calMonth, d);
     const iso  = isoDate(date);
     const past = date < today;
+    
+    let outOfBounds = false;
+    if(mStart && date < mStart) outOfBounds = true;
+    if(mEnd && date > mEnd) outOfBounds = true;
+    
+    const disabled = past || outOfBounds;
     const isTod = date.getTime() === today.getTime();
     const isSel = iso === S.selectedDate;
-    let cls = 'cal-cell' + (past ? ' past' : ' avail') + (isTod ? ' today' : '') + (isSel ? ' selected' : '');
-    const click = past ? '' : `onclick="selectDate('${iso}')"`;
+    let cls = 'cal-cell' + (disabled ? ' past' : ' avail') + (isTod ? ' today' : '') + (isSel ? ' selected' : '');
+    const click = disabled ? '' : `onclick="selectDate('${iso}')"`;
     grid.insertAdjacentHTML('beforeend', `<div class="${cls}" ${click}>${d}</div>`);
   }
 }
@@ -370,11 +444,10 @@ function pad(n) { return String(n).padStart(2, '0'); }
 /* ── SLOTS ─────────────────────────────────────────────────── */
 function generateSlots() {
   const slots = [];
-  // Bottom-of-the-hour 30-minute slots (h:30 - (h+1):00)
+  // Two 15-minute slots per hour at the bottom of the hour (h:30-h:45 and h:45-(h+1):00)
   for (let h = CONFIG.DAY_START.h; h < CONFIG.DAY_END_LAST.h; h++) {
-    const start = `${pad(h)}:30`;
-    const end = `${pad(h + 1)}:00`;
-    slots.push({ start, end });
+    slots.push({ start: `${pad(h)}:30`, end: `${pad(h)}:45` });
+    slots.push({ start: `${pad(h)}:45`, end: `${pad(h+1)}:00` });
   }
   return slots;
 }
@@ -388,10 +461,13 @@ function toMins(timeStr) {
 function slotStatus(slotStart, takenSlots, myBookings) {
   const isMine = myBookings.some(b => b.slot_start.slice(0,5) === slotStart);
   if (isMine) return 'mine';
-  if (takenSlots.some(t => t.slice(0,5) === slotStart)) return 'taken';
-  if (myBookings.length >= CONFIG.MAX_PER_DAY) return 'locked';
-  if (myBookings.length === 1) {
-    const existMins = toMins(myBookings[0].slot_start);
+  if (S.pendingSlots.includes(slotStart)) return 'pending';
+  if (takenSlots.some(t => t.slot.slice(0,5) === slotStart)) return 'taken';
+  const totalMine = myBookings.length + S.pendingSlots.length;
+  if (totalMine >= CONFIG.MAX_PER_DAY) return 'locked';
+  if (totalMine === 1) {
+    const allMine = [...myBookings.map(b => b.slot_start.slice(0,5)), ...S.pendingSlots];
+    const existMins = toMins(allMine[0]);
     const thisMins  = toMins(slotStart);
     if (Math.abs(thisMins - existMins) > CONFIG.WINDOW_MINS) return 'locked';
   }
@@ -401,14 +477,15 @@ function slotStatus(slotStart, takenSlots, myBookings) {
 /* ── LOAD DAY DATA ─────────────────────────────────────────── */
 async function selectDate(iso) {
   S.selectedDate = iso;
+  S.pendingSlots = [];
   renderCalendar();
   document.getElementById('slotPanel').innerHTML = '<div class="loading"><span class="spin">⟳</span> Loading…</div>';
 
   try {
     const rows = await sbGet(
-      `/rest/v1/member_bookings?booking_date=eq.${iso}&status=eq.confirmed&select=id,slot_start,member_id`
+      `/rest/v1/member_bookings?booking_date=eq.${iso}&status=eq.confirmed&select=id,slot_start,member_id,member_name`
     );
-    S.takenSlots    = rows.filter(r => r.member_id !== S.user.id).map(r => r.slot_start);
+    S.takenSlots    = rows.filter(r => r.member_id !== S.user.id).map(r => ({ slot: r.slot_start, name: r.member_name }));
     S.myDayBookings = rows.filter(r => r.member_id === S.user.id);
     renderSlots();
   } catch (ex) {
@@ -427,12 +504,12 @@ function fmt12(timeStr) {
 function renderSlots() {
   const date = new Date(S.selectedDate + 'T00:00:00');
   const dateLabel = date.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-  const myCount = S.myDayBookings.length;
+  const myCount = S.myDayBookings.length + S.pendingSlots.length;
 
   const slots = generateSlots();
   const byHour = {};
   slots.forEach(s => {
-    const h = s.start.split(':')[0];
+    const h = parseInt(s.start.split(':')[0], 10);
     if (!byHour[h]) byHour[h] = [];
     byHour[h].push(s);
   });
@@ -445,10 +522,12 @@ function renderSlots() {
     </div>`;
 
   let limitNote = '';
-  if (myCount >= CONFIG.MAX_PER_DAY) {
-    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--gold-light);border-radius:8px;font-size:.78rem;color:#7a4a00;font-weight:600;">You have 2 bookings on this day — daily limit reached.</div>`;
+  if (myCount === 2) {
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--gold-light);border-radius:8px;font-size:.78rem;color:#7a4a00;font-weight:600;">You have selected 2 slots on this day — ready to confirm.</div>`;
   } else if (myCount === 1) {
-    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--blue-light);border-radius:8px;font-size:.78rem;color:var(--navy);font-weight:600;">1 of 2 bookings used. Your 2nd booking must be within 2 hours of your first.</div>`;
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--blue-light);border-radius:8px;font-size:.78rem;color:var(--navy);font-weight:600;">You must select exactly 2 slots. Please select one more (must be within 2 hours).</div>`;
+  } else {
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:.78rem;color:var(--gray);text-align:center;">Note: You must select exactly 2 slots per day.</div>`;
   }
 
   let gridHtml = '';
@@ -458,55 +537,126 @@ function renderSlots() {
     gridHtml += `<div class="hour-group"><div class="hour-label">${hLabel}</div><div class="slot-row">`;
     hourSlots.forEach(s => {
       const status   = slotStatus(s.start, S.takenSlots, S.myDayBookings);
-      const timeLabel = `${s.start.slice(3,5)}–${s.end.slice(3,5)}`;
+      
+      const formatTime = (timeStr) => {
+        const [h, m] = timeStr.split(':');
+        const hNum = parseInt(h);
+        return `${hNum > 12 ? hNum - 12 : (hNum === 0 ? 12 : hNum)}:${m}`;
+      };
+      const timeLabel = `${formatTime(s.start)} - ${formatTime(s.end)}`;
+
+      const formatName = (n) => {
+        if (!n) return 'Taken';
+        if (n.includes('@')) return n.split('@')[0];
+        return n.split(' ')[0];
+      };
+
       if (status === 'mine') {
         const bk = S.myDayBookings.find(b => b.slot_start.slice(0,5) === s.start);
-        gridHtml += `<button class="slot-btn mine" onclick="cancelSlot('${bk?.id}','${s.start}')" title="Tap to cancel">${timeLabel}<br>✓ Booked</button>`;
+        const md = S.user.user_metadata || {};
+        const rawName = md.first_name ? `${md.first_name} ${md.last_name || ''}` : (md.full_name || S.user.email);
+        const myName = formatName(rawName);
+        gridHtml += `<button class="slot-btn mine" onclick="cancelSlot('${bk?.id}','${s.start}')" title="Tap to cancel">${timeLabel}<br>✓ ${myName}</button>`;
+      } else if (status === 'pending') {
+        gridHtml += `<button class="slot-btn pending" onclick="toggleSlot('${s.start}')" title="Tap to deselect">${timeLabel}<br>Selected</button>`;
       } else if (status === 'taken') {
-        gridHtml += `<button class="slot-btn taken" disabled>${timeLabel}<br>Taken</button>`;
+        const t = S.takenSlots.find(t => t.slot.slice(0,5) === s.start);
+        const tName = formatName(t?.name);
+        gridHtml += `<button class="slot-btn taken" disabled>${timeLabel}<br>${tName}</button>`;
       } else if (status === 'locked') {
-        const reason = myCount >= CONFIG.MAX_PER_DAY ? 'Limit' : '±2hr';
+        const totalMine = S.myDayBookings.length + S.pendingSlots.length;
+        const reason = totalMine >= CONFIG.MAX_PER_DAY ? 'Limit' : '±2hr';
         gridHtml += `<button class="slot-btn locked" disabled>${timeLabel}<br>${reason}</button>`;
       } else {
-        gridHtml += `<button class="slot-btn" onclick="bookSlot('${s.start}','${s.end}',this)">${timeLabel}</button>`;
+        gridHtml += `<button class="slot-btn" onclick="toggleSlot('${s.start}')">${timeLabel}</button>`;
       }
     });
     gridHtml += '</div></div>';
   });
 
+  let confirmHtml = '';
+  if (S.pendingSlots.length > 0) {
+    confirmHtml = `<div style="margin:0 20px 16px;"><button class="btn-primary" onclick="confirmPendingSlots()" style="width:100%; background:var(--green); border-radius:8px; font-size:1rem; padding:14px;">Confirm ${S.pendingSlots.length} Booking(s)</button></div>`;
+  }
+
   document.getElementById('slotPanel').innerHTML =
     `<div class="slot-day-hdr">${dateLabel}</div>` +
-    legendHtml + limitNote +
+    legendHtml + limitNote + confirmHtml +
     `<div class="slot-scroller">${gridHtml}</div>`;
 }
 
 /* ── BOOK ──────────────────────────────────────────────────── */
-async function bookSlot(slotStart, slotEnd, btn) {
-  btn.disabled = true; btn.textContent = '…';
-  try {
-    const payload = {
-      member_id:    S.user.id,
-      member_email: S.user.email,
-      member_name:  S.user.user_metadata?.full_name || S.user.email,
-      booking_date: S.selectedDate,
-      slot_start:   slotStart,
-      slot_end:     slotEnd,
-      status:       'confirmed',
-    };
-    const [result] = await sbPost('/rest/v1/member_bookings', payload);
-    notifyWebhook({ ...payload, booking_id: result.id, event: 'member_booking_created' });
-    showToast('Slot booked!', 'success');
-    await selectDate(S.selectedDate);
-    loadUpcoming();
-  } catch (ex) {
-    let msg = 'Booking failed — please try again.';
-    if (ex.message.includes('unique') || ex.message.includes('23505')) {
-      msg = 'That slot was just taken. Try another.';
+function toggleSlot(start) {
+  const idx = S.pendingSlots.indexOf(start);
+  if (idx > -1) {
+    S.pendingSlots.splice(idx, 1);
+  } else {
+    const total = S.myDayBookings.length + S.pendingSlots.length;
+    if (total >= CONFIG.MAX_PER_DAY) {
+      showToast('Daily limit reached', 'error');
+      return;
     }
-    showToast(msg, 'error');
-    btn.disabled = false;
-    renderSlots();
+    const allMine = [...S.myDayBookings.map(b => b.slot_start.slice(0,5)), ...S.pendingSlots];
+    if (allMine.length === 1) {
+       const existMins = toMins(allMine[0]);
+       const thisMins = toMins(start);
+       if (Math.abs(thisMins - existMins) > CONFIG.WINDOW_MINS) {
+         showToast('Second booking must be within 2 hours of the first', 'error');
+         return;
+       }
+    }
+    S.pendingSlots.push(start);
   }
+  renderSlots();
+}
+
+async function confirmPendingSlots() {
+  const slotsToBook = [...S.pendingSlots];
+  if (!slotsToBook.length) return;
+  
+  if (S.myDayBookings.length + slotsToBook.length > CONFIG.MAX_PER_DAY) {
+    showToast(`You can only book up to ${CONFIG.MAX_PER_DAY} slots per day.`, 'error');
+    return;
+  }
+  
+  document.getElementById('slotPanel').innerHTML = '<div class="loading"><span class="spin">⟳</span> Saving Bookings…</div>';
+  
+  const md = S.user.user_metadata || {};
+  const mName = md.first_name 
+    ? `${md.first_name} ${md.last_name || ''}`.trim() 
+    : (md.full_name || S.user.email);
+    
+  let successCount = 0;
+  for (const start of slotsToBook) {
+    const end = generateSlots().find(s => s.start === start)?.end;
+    if (!end) continue;
+    try {
+      const payload = {
+        member_id:    S.user.id,
+        member_email: S.user.email,
+        member_name:  mName,
+        booking_date: S.selectedDate,
+        slot_start:   start,
+        slot_end:     end,
+        status:       'confirmed',
+      };
+      const [result] = await sbPost('/rest/v1/member_bookings', payload);
+      notifyWebhook({ ...payload, booking_id: result.id, event: 'member_booking_created' });
+      successCount++;
+    } catch (ex) {
+      console.error(ex);
+    }
+  }
+  
+  S.pendingSlots = [];
+  if (successCount === slotsToBook.length) {
+    showToast('Bookings confirmed!', 'success');
+  } else {
+    showToast(`Confirmed ${successCount} out of ${slotsToBook.length} slots. Some may have just been taken.`, 'error');
+  }
+  
+  await selectDate(S.selectedDate);
+  loadUpcoming();
 }
 
 /* ── CANCEL (from slot grid) ───────────────────────────────── */
@@ -523,7 +673,7 @@ async function cancelSlot(id, slotStart) {
 
 /* ── UPCOMING BOOKINGS ─────────────────────────────────────── */
 async function loadUpcoming() {
-  const today = isoDate(new Date());
+  const today = isoDate(getLADate());
   try {
     const rows = await sbGet(
       `/rest/v1/member_bookings?member_id=eq.${S.user.id}&status=eq.confirmed&booking_date=gte.${today}&select=id,booking_date,slot_start,slot_end&order=booking_date.asc,slot_start.asc`
@@ -539,12 +689,24 @@ function renderUpcoming() {
     el.innerHTML = '<div class="no-bookings">No upcoming bookings</div>';
     return;
   }
+  
+  const md = S.user.user_metadata || {};
+  const myName = md.first_name ? `${md.first_name} ${md.last_name || ''}`.trim() : (md.full_name || S.user.email);
+  const displayName = myName.includes('@') ? myName.split('@')[0] : myName;
+
+  const fmt12 = (timeStr) => {
+    const [h, m] = timeStr.split(':');
+    const hNum = parseInt(h, 10);
+    return `${hNum > 12 ? hNum - 12 : (hNum === 0 ? 12 : hNum)}:${m} ${hNum >= 12 ? 'PM' : 'AM'}`;
+  };
+
   el.innerHTML = '<div class="upcoming-list">' + S.upcoming.map(b => {
     const d = new Date(b.booking_date + 'T00:00:00');
     const dl = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
     return `<div class="bk-item">
       <div>
         <div class="bk-date">${dl}</div>
+        <div class="bk-slot" style="color: var(--navy); font-weight: 600;">${displayName}</div>
         <div class="bk-slot">${fmt12(b.slot_start.slice(0,5))} – ${fmt12(b.slot_end.slice(0,5))}</div>
       </div>
       <button class="btn-cancel-sm" onclick="cancelFromList('${b.id}','${b.booking_date}','${b.slot_start.slice(0,5)}')">Cancel</button>
@@ -586,6 +748,62 @@ function showToast(msg, type = '') {
 (async () => {
   if (await tryRestoreSession()) startApp();
 })();
+
+/* ── SETTINGS ──────────────────────────────────────────────── */
+function toggleSettings(show) {
+  const m = document.getElementById('settingsModal');
+  if (show) {
+    const md = S.user.user_metadata || {};
+    document.getElementById('setFirstName').value = md.first_name || '';
+    document.getElementById('setLastName').value  = md.last_name || '';
+    document.getElementById('setPhone').value     = md.phone || '';
+    document.getElementById('setAddress').value   = md.address || '';
+    document.getElementById('setPassword').value  = '';
+    m.style.display = 'flex';
+  } else {
+    m.style.display = 'none';
+  }
+}
+
+async function handleSaveSettings(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSaveSettings');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const meta = {
+      first_name: document.getElementById('setFirstName').value.trim(),
+      last_name:  document.getElementById('setLastName').value.trim(),
+      phone:      document.getElementById('setPhone').value.trim(),
+      address:    document.getElementById('setAddress').value.trim()
+    };
+    
+    const payload = { data: meta };
+    const newPassword = document.getElementById('setPassword').value;
+    if (newPassword) {
+      if (newPassword.length < 6) throw new Error("Password must be at least 6 characters.");
+      payload.password = newPassword;
+    }
+
+    const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${S.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.error_description || 'Failed to save settings');
+    S.user = data;
+    const name = `${meta.first_name} ${meta.last_name}`.trim();
+    document.getElementById('memberName').textContent = name;
+    toggleSettings(false);
+    showToast('Profile updated!', 'success');
+    if (S.selectedDate) renderSlots();
+    loadUpcoming();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Profile';
+  }
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    color: #333333;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #ffffff;
+  }
+  .header {
+    text-align: center;
+    padding-bottom: 20px;
+  }
+  .hero-image {
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    border-radius: 8px 8px 0 0;
+    display: block;
+    margin: 0 auto;
+  }
+  .content {
+    background-color: #f9f9f9;
+    padding: 30px;
+    border-radius: 0 0 8px 8px;
+  }
+  .button {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #0066cc;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    margin: 20px 0;
+  }
+  .promo-code {
+    background-color: #e6f2ff;
+    padding: 10px 15px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #0066cc;
+    border-radius: 4px;
+    display: inline-block;
+    letter-spacing: 1px;
+  }
+  .price-highlight {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+</style>
+</head>
+<body>
+
+  <!-- EMAIL 1: JULY 18 -->
+  <div style="margin-bottom: 60px; border: 1px dashed #ccc; padding: 20px;">
+    <h3>Email 1 (Send July 18)</h3>
+    <p><strong>Subject:</strong> Your July Bonus: Buy 2 Ski Rides, Get 1 FREE 🌊</p>
+    <hr>
+    
+    <div class="container">
+      <img class="hero-image" src="https://assets.cdn.filesafe.space/rqN9GeQaEfpisadTVaUO/media/6a0217efb7ca635d75d500fd.png" alt="Bell Acqua Lake Ski Ride">
+      <div class="content">
+        <p>Hi {{contact.first_name}},</p>
+        
+        <p>Summer is in full swing at Bell Acqua Lake!</p>
+        
+        <p>To help you make the most of the season, we're giving you a special July offer. For a limited time, when you book 2 ski rides or lessons, you get a <strong>3rd one completely FREE</strong>.</p>
+        
+        <p>A single ski ride is <span class="price-highlight">$297</span>, so this is your chance to get more time on the water and save big!</p>
+        
+        <p>Use promo code at checkout:</p>
+        <div class="promo-code">B2G1JULY2026</div>
+        
+        <div style="text-align: center;">
+          <a href="https://meek-duckanoo-53e84b.netlify.app/bell-acqua-booking.html" class="button" style="color: #ffffff;">Claim Your $297 Free Ride Now</a>
+        </div>
+        
+        <p><em>Note: This code expires on July 31st, 2026. Make sure to book your slots before they fill up!</em></p>
+        
+        <p>See you on the water,<br>
+        <strong>The Team at Bell Acqua Lake</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMAIL 2: JULY 19 -->
+  <div style="margin-bottom: 60px; border: 1px dashed #ccc; padding: 20px;">
+    <h3>Email 2 (Send July 19)</h3>
+    <p><strong>Subject:</strong> Don't miss out on your free ski ride, {{contact.first_name}}!</p>
+    <hr>
+    
+    <div class="container">
+      <img class="hero-image" src="https://assets.cdn.filesafe.space/rqN9GeQaEfpisadTVaUO/media/6a0217efb7ca635d75d500fd.png" alt="Bell Acqua Lake Ski Ride">
+      <div class="content">
+        <p>Hi {{contact.first_name}},</p>
+        
+        <p>Just a quick reminder that your <strong>Buy 2, Get 1 FREE</strong> offer is waiting for you!</p>
+        
+        <p>Our calendar is filling up fast for July, so if you've been wanting to get out on the water, now is the perfect time to lock in your sessions.</p>
+        
+        <p>A standard ski ride is <span class="price-highlight">$297</span>, but with your promo code, your 3rd ride is completely on the house.</p>
+        
+        <p>Use promo code:</p>
+        <div class="promo-code">B2G1JULY2026</div>
+        
+        <div style="text-align: center;">
+          <a href="https://meek-duckanoo-53e84b.netlify.app/bell-acqua-booking.html" class="button" style="color: #ffffff;">Book Your Rides Today</a>
+        </div>
+        
+        <p><em>Code expires July 31st, 2026.</em></p>
+        
+        <p>See you out there!<br>
+        <strong>The Team at Bell Acqua Lake</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMS MESSAGES -->
+  <div style="margin-bottom: 60px; border: 1px dashed #ccc; padding: 20px;">
+    <h3>SMS Messages</h3>
+    <hr>
+    
+    <h4>SMS 1 (Send July 18)</h4>
+    <p style="background: #f1f1f1; padding: 15px; border-radius: 8px;">
+      Hi {{contact.first_name}}! 🌊 Summer special at Bell Acqua Lake: Buy 2 ski rides ($297/ea), get 1 FREE! Use code B2G1JULY2026 at checkout. Book here: https://meek-duckanoo-53e84b.netlify.app/bell-acqua-booking.html (Expires 7/31)
+    </p>
+
+    <h4>SMS 2 (Send July 19)</h4>
+    <p style="background: #f1f1f1; padding: 15px; border-radius: 8px;">
+      Hi {{contact.first_name}}, just a reminder! Your $297 Buy 2 Get 1 FREE ski ride offer is still active. Use code B2G1JULY2026 before it expires 7/31. Grab your slots: https://meek-duckanoo-53e84b.netlify.app/bell-acqua-booking.html
+    </p>
+  </div>
+
+</body>
+</html>

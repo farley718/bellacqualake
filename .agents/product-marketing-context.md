@@ -57,3 +57,30 @@ Built the full VIP Membership Giveaway campaign for June Facebook Ads. Created l
 **Summary:**
 Created Supabase member account for `john.farley.pesigan@gmail.com` with password `password123`. Resolved database schema errors by executing a migration script to create the missing `member_bookings` table. Updated the Member Portal (`bell-acqua-member.html`) slot generation logic to produce bottom-of-the-hour 30-minute slots starting at 7:30 AM (matching public booking guidelines). Deployed the portal and all associated updates to the live Netlify production environment.
 ---
+## Recent Technical Updates (June 2026)
+
+- **Member Booking Dashboard**: Built an independent member dashboard (`bell-acqua-member.html`) where active members can book up to 2 time slots per day.
+- **Membership Dates**: Added functionality to restrict member booking access based on active membership dates (`membership_start` and `membership_end`).
+- **Staff Dashboard Integration**: Staff dashboard (`bell-acqua-staff.html`) now displays member bookings, correctly mapping 15-minute slot intervals to the staff's hourly layout.
+- **Admin Password Reset**: Implemented a secure RPC function (`admin_update_user_password`) to allow staff to reset member passwords directly from the UI using a PIN (1965).
+- **Deployment**: Both dashboards are synced to the `netlify-deploy` folder.
+
+### Session Update: 2026-06-30
+**Summary:**
+Finalized the member dashboard integration. Fixed time format mapping so 24-hour member bookings (e.g. 15-minute slots at :30/:45) correctly display on the staff dashboard's hourly layout. Enforced new database RLS policies to allow the staff dashboard (anon) to read and cancel member bookings, and to allow authenticated members to insert/cancel their own bookings. Removed the strict 2-slot minimum for members. Added an Admin Password Reset function to the staff dashboard utilizing a secure Postgres RPC function protected by a staff PIN. All updates deployed to Netlify.
+---
+
+### Session Update: 2026-07-18
+**Summary:**
+Drafted the July B2G1 (Buy 2 Get 1) promo sequence for Bell Acqua Lake consisting of 2 emails and 2 SMS messages, using promo code B2G1JULY2026. The emails were designed directly in HTML for immediate GoHighLevel pasting and included the $297 price anchor alongside a hero image. HTML file was saved to the `outputs/` folder. Next session can execute the campaign in GHL.
+---
+
+### Session Update: 2026-07-23
+**Summary:**
+Built a client-ready **90-Day Growth Roadmap (Aug–Oct 2026)** PowerPoint aligned to the client's "Growth Strategy Plan / Marketing & Revenue Performance Analysis" doc. 13 slides: the lead-gen thesis (demand, not capacity, is the constraint), targets ($25K/mo · 15 members · $15K reserve · $1K/mo ad spend), 4-yr revenue vs the $25K bar, the Lead→Lesson→Repeat→Member funnel (with the 27.5% lesson-to-member roster proof), the margin/ROI engine, the protected $1K budget, and **all 13 weeks as three monthly sprint boards with an owner tag (MKT/OPS/FIN/OWN) on every task**, plus a KPI scoreboard, risks/data-gaps, and a "do this week" action slide. Saved to `outputs/BellAcquaLake_90-Day_Growth_Roadmap.pptx`. Key flags surfaced: the $1K working ad budget must be **ring-fenced from overhead** (H1 2026 leaked to ~$128/mo real spend), and ~$22,400 of in-window renewals are a lower-effort path to the reserve than 15 cold members. **Next session:** optionally expand any month into per-week slides for finer granularity, and execute Week-1 actions — rebuild the Meta campaign (consolidate to winner, kill "– Copy" sets), build the renewal-reminder calendar (8/15 dates first), load the post-lesson membership follow-up into GHL, add a "How did you hear about us?" field — plus the still-open July B2G1 promo (code B2G1JULY2026) go-live in GHL.
+---
+
+### Session Update: 2026-08-12
+**Summary:**
+Built and shipped the full **affiliate referral program**, live in production. New `bell-acqua-affiliate.html` page (with the real BAL logo): anyone joins with name + email (no password) and gets a unique code (e.g. `JANE-7F2K`), a shareable `?ref=` booking link, and a private token-based dashboard showing referrals and credit coupons. Booking page: Step-1 "Have a referral code?" box auto-fills from `?ref=`, auto-applies **20% off first booking** at the cart via the existing coupon math, and on checkout mints the affiliate a one-time **20% credit coupon** (`CREDIT-XXXXXX`) redeemable in the normal coupon box; confirmation page now invites every new customer to join. Staff dashboard: Referrals tab reworked to list affiliates with active/inactive toggle and per-credit used/available status. All validation is server-side via 5 SECURITY DEFINER RPCs in `web/supabase/migrations/20260812_affiliate_program.sql` (applied by John): first-booking-only, no self-referral, one credit per referred email ever. Tier-ready: `friend_discount_pct` / `reward_pct` are per-affiliate columns — future reward tiers are just an UPDATE. **Netlify CLI was authorized this session — deploy directly with** `npx -y netlify-cli deploy --prod --dir "Marketing Agency\Bell Acqua Lake\web\netlify-deploy" --site 66da87b7-51e4-47db-bbbc-1a47eae71201` (no more manual deploys; a manual "deploy" this session turned out stale). **Next session:** (1) create the GHL "affiliate credit earned" email workflow and paste its webhook URL into `GHL_AFFILIATE_WEBHOOK_URL` in bell-acqua-booking.html — until then affiliates only see credits in their dashboard, no email; (2) announce the program (email blast to existing customers + social); (3) still open from July: B2G1JULY2026 promo go-live in GHL and the 90-day roadmap Week-1 actions.
+---

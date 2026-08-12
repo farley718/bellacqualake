@@ -731,6 +731,16 @@
         <div id="waiverRefStatus" style="margin-top:8px; font-size:0.82rem; min-height:18px;"></div>
       </div>
 
+      <!-- Referral code -->
+      <div style="margin-top:16px; padding:16px; background:var(--gold-light); border:1px solid var(--gold); border-radius:var(--radius-sm);">
+        <p class="text-sm" style="font-weight:700; color:var(--navy); margin-bottom:4px;">🎁 Have a referral code?</p>
+        <p class="text-sm text-gray" style="margin-bottom:10px;">First time at Bell Acqua? Enter a friend's referral code and get <strong>20% off your first booking</strong> — they earn a credit too. It applies automatically at checkout.</p>
+        <input type="text" id="refCodeInput" placeholder="e.g. JANE-7F2K"
+          style="text-transform:uppercase; letter-spacing:1px;" maxlength="20"
+          oninput="this.value=this.value.toUpperCase()" />
+        <div id="refCodeNote" class="text-sm" style="margin-top:6px; min-height:16px;"></div>
+      </div>
+
       <!-- Consent -->
       <div style="margin-top:16px; padding:16px; background:var(--blue-light); border:1px solid var(--border); border-radius:var(--radius-sm);">
         <div class="checkbox-row" style="margin-bottom:0;">
@@ -1050,6 +1060,13 @@
         🔑 <strong>Save this reference!</strong> Next time you book this season, enter <strong id="confirmWaiverRefInline"></strong> in the "Returning Guest?" field on step 1 to skip the waiver.
       </div>
 
+      <!-- Affiliate program invite -->
+      <div style="margin-top:20px; padding:18px; background:var(--gold-light); border:1.5px solid var(--gold); border-radius:var(--radius-sm); text-align:center;">
+        <p style="font-family:'Montserrat',sans-serif; font-weight:800; color:var(--navy-dark); margin-bottom:6px;">🎁 Love the lake? Get paid to share it.</p>
+        <p class="text-sm text-gray" style="margin-bottom:12px;">Join our referral program — your friends get <strong>20% off</strong> their first booking, and you earn a <strong>20% credit</strong> toward your next ride. Every single time.</p>
+        <a class="btn btn-gold" href="#" onclick="window.location.href = CONFIG.AFFILIATE_PAGE_URL; return false;" style="text-decoration:none;">Get My Referral Link →</a>
+      </div>
+
       <div class="text-center mt-4">
         <button class="btn btn-outline" onclick="App.startOver()">Make Another Booking</button>
       </div>
@@ -1090,6 +1107,10 @@ const CONFIG = {
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
   WAIVER_PAGE_URL:   'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-waiver.html',
   MANAGE_PAGE_URL:   'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-manage.html',
+  AFFILIATE_PAGE_URL:'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-affiliate.html',
+  // GHL Inbound Webhook that emails an affiliate their referral-credit coupon.
+  // Create the workflow in GHL, then paste its webhook URL here.
+  GHL_AFFILIATE_WEBHOOK_URL: 'YOUR_AFFILIATE_WEBHOOK_URL',
 
   // ── Business Settings ─────────────────────────────────────
   TAX_RATE:             0,     // no tax
@@ -1214,6 +1235,8 @@ function dateKey(d) {
 const state = {
   step: 1,
   party: { firstName:'', lastName:'', email:'', phone:'', partyName:'', size:1, additionalGuests:[] },
+  refCode:      null,         // affiliate referral code (from ?ref= or typed on step 1)
+  affiliateRef: null,         // validated result from affiliate_validate_code RPC
   selectedSlots: [],   // [{ id, date, slotTypeId, label, time, price, status }]
   availability: {},
   availabilityLoading: false,
@@ -1262,6 +1285,18 @@ const App = {
     this.renderProgress();
     this.renderCalendar();
     this.showStep(1);
+
+    // Capture affiliate referral code from ?ref= and prefill step 1
+    const refParam = new URLSearchParams(window.location.search).get('ref');
+    if (refParam) {
+      state.refCode = refParam.trim().toUpperCase();
+      const refInput = document.getElementById('refCodeInput');
+      if (refInput) {
+        refInput.value = state.refCode;
+        document.getElementById('refCodeNote').innerHTML =
+          '<span style="color:var(--green);">✓ Referral code detected — your 20% first-booking discount will apply at checkout.</span>';
+      }
+    }
 
     // Load real availability from Supabase in the background
     this.loadAvailability();
@@ -1461,6 +1496,7 @@ const App = {
     state.party.phone            = document.getElementById('phone').value.trim();
     state.party.partyName        = document.getElementById('partyName').value.trim();
     state.party.additionalGuests = additionalGuests;
+    state.refCode                = document.getElementById('refCodeInput').value.trim().toUpperCase() || null;
 
     // ── GHL: Create/update Contact (stub) ──────────────────────────
     // GHL.createContact({ firstName, lastName, email, phone, ... });
@@ -1662,6 +1698,15 @@ const App = {
     this.startCartTimer();
     this.renderCart();
     this.showStep(3);
+
+    // Auto-apply the affiliate referral code from step 1 / ?ref= link
+    if (state.refCode && !state.couponCode) {
+      const couponInput = document.getElementById('couponInput');
+      if (couponInput) {
+        couponInput.value = state.refCode;
+        this.applyCoupon();
+      }
+    }
   },
 
   updateCartBadge() {
@@ -1841,9 +1886,8 @@ const App = {
       const rows = await res.json();
 
       if (!rows || !rows.length) {
-        statusEl.innerHTML = '❌ <span style="color:var(--red);">Invalid or inactive coupon code.</span>';
-        state.couponCode = null; state.couponData = null; state.couponDiscount = 0;
-        this.refreshCouponDisplay();
+        // Not a coupon — try it as an affiliate referral code
+        await this.applyAffiliateCode(code, statusEl);
         btn.disabled = false;
         return;
       }
@@ -1853,7 +1897,7 @@ const App = {
       // Check expiry
       if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
         statusEl.innerHTML = '❌ <span style="color:var(--red);">This coupon has expired.</span>';
-        state.couponCode = null; state.couponData = null; state.couponDiscount = 0;
+        state.couponCode = null; state.couponData = null; state.couponDiscount = 0; state.affiliateRef = null;
         this.refreshCouponDisplay();
         btn.disabled = false;
         return;
@@ -1862,7 +1906,7 @@ const App = {
       // Check max uses
       if (coupon.max_uses !== null && coupon.max_uses !== undefined && coupon.uses_count >= coupon.max_uses) {
         statusEl.innerHTML = '❌ <span style="color:var(--red);">This coupon has reached its usage limit.</span>';
-        state.couponCode = null; state.couponData = null; state.couponDiscount = 0;
+        state.couponCode = null; state.couponData = null; state.couponDiscount = 0; state.affiliateRef = null;
         this.refreshCouponDisplay();
         btn.disabled = false;
         return;
@@ -1878,7 +1922,7 @@ const App = {
           const used = await emailCheck.json();
           if (used && used.length > 0) {
             statusEl.innerHTML = '❌ <span style="color:var(--red);">This coupon code has already been used with your email address. Each code can only be used once per guest.</span>';
-            state.couponCode = null; state.couponData = null; state.couponDiscount = 0;
+            state.couponCode = null; state.couponData = null; state.couponDiscount = 0; state.affiliateRef = null;
             this.refreshCouponDisplay();
             btn.disabled = false;
             return;
@@ -1891,7 +1935,7 @@ const App = {
         // Must have exactly 3 slots
         if (state.selectedSlots.length !== 3) {
           statusEl.innerHTML = '❌ <span style="color:var(--red);">This code requires <strong>exactly 3 sessions</strong> in your cart. Please add or remove sessions until you have 3.</span>';
-          state.couponCode = null; state.couponData = null; state.couponDiscount = 0;
+          state.couponCode = null; state.couponData = null; state.couponDiscount = 0; state.affiliateRef = null;
           this.refreshCouponDisplay();
           btn.disabled = false;
           return;
@@ -1902,6 +1946,7 @@ const App = {
         state.couponCode = code;
         state.couponData = coupon;
         state.couponDiscount = discount;
+        state.affiliateRef = null;
         statusEl.innerHTML = `✅ <span style="color:var(--green);">Coupon applied — <strong>Buy 2 Get 1 Free</strong> · 1 session ($${discount.toFixed(2)}) is FREE!</span>`;
         this.refreshCouponDisplay();
         btn.disabled = false;
@@ -1920,6 +1965,7 @@ const App = {
       state.couponCode = code;
       state.couponData = coupon;
       state.couponDiscount = discount;
+      state.affiliateRef = null;
 
       const label = coupon.discount_type === 'percent'
         ? `${coupon.discount_value}% off`
@@ -1933,6 +1979,50 @@ const App = {
     }
 
     btn.disabled = false;
+  },
+
+  // Validate a code against the affiliate program (server-side RPC checks:
+  // active code, not self-referral, first booking only, not already referred)
+  async applyAffiliateCode(code, statusEl) {
+    try {
+      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/affiliate_validate_code`, {
+        method:  'POST',
+        headers: {
+          'apikey':        CONFIG.SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({ p_code: code, p_email: state.party.email }),
+      });
+      const result = res.ok ? await res.json() : null;
+
+      if (!result || !result.valid) {
+        const reasons = {
+          self:             'You can\'t use your own referral code.',
+          already_referred: 'A referral discount has already been used with your email address.',
+          not_first:        'Referral discounts are for first-time guests only — welcome back!',
+        };
+        const msg = (result && reasons[result.reason]) || 'Invalid or inactive coupon code.';
+        statusEl.innerHTML = `❌ <span style="color:var(--red);">${msg}</span>`;
+        state.couponCode = null; state.couponData = null; state.couponDiscount = 0; state.affiliateRef = null;
+        this.refreshCouponDisplay();
+        return;
+      }
+
+      const pct = parseFloat(result.discount_pct) || 20;
+      const { subtotal } = this.getCartTotals();
+      const discount = Math.round(subtotal * pct / 100 * 100) / 100;
+
+      state.couponCode     = result.code;
+      state.couponData     = { discount_type: 'percent', discount_value: pct, description: 'Referral discount', source: 'affiliate' };
+      state.couponDiscount = discount;
+      state.affiliateRef   = result;
+
+      statusEl.innerHTML = `✅ <span style="color:var(--green);">Referral from <strong>${result.affiliate_first_name}</strong> applied — <strong>${pct}% off</strong> your first booking!</span>`;
+      this.refreshCouponDisplay();
+    } catch (err) {
+      statusEl.innerHTML = '❌ <span style="color:var(--red);">Could not verify code. Please try again.</span>';
+    }
   },
 
   mountStripe(total) {
@@ -2270,6 +2360,39 @@ const App = {
           headers: sbHeaders,
           body:    JSON.stringify(bookingPayload),
         });
+
+        // 1b. Affiliate referral — record it and mint the affiliate's
+        // one-time credit coupon (server-side RPC, non-fatal on failure;
+        // DB enforces one credit per referred customer).
+        if (state.affiliateRef) {
+          try {
+            const recRes = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/affiliate_record_referral`, {
+              method:  'POST',
+              headers: sbHeaders,
+              body:    JSON.stringify({
+                p_code:           state.affiliateRef.code,
+                p_referred_email: state.party.email.toLowerCase(),
+                p_referred_name:  `${state.party.firstName} ${state.party.lastName}`,
+                p_booking_id:     state.bookingRef,
+              }),
+            });
+            const rec = recRes.ok ? await recRes.json() : null;
+            if (rec && rec.ok) {
+              // Notify the affiliate their credit is ready (best-effort)
+              GHL.sendAffiliateCreditEmail({
+                affiliateName:    rec.affiliate_name,
+                affiliateEmail:   rec.affiliate_email,
+                creditCode:       rec.credit_coupon_code,
+                rewardPct:        rec.reward_pct,
+                referredFirstName: state.party.firstName,
+              }).catch(e => console.warn('GHL affiliate credit email error:', e));
+            } else {
+              console.warn('affiliate_record_referral skipped:', rec && rec.reason);
+            }
+          } catch (refErr) {
+            console.warn('affiliate_record_referral error (non-fatal):', refErr);
+          }
+        }
 
         // 2. Insert waiver_request rows for each guest (skip if bypassed)
         if (state.waiverBypassStatus !== 'valid') {
@@ -2620,6 +2743,29 @@ const GHL = {
         status:        'confirmed',
       }),
     }).catch(e => console.warn('GHL booking confirmed webhook error:', e));
+  },
+
+  // Tell an affiliate their referral credit coupon is ready
+  async sendAffiliateCreditEmail({ affiliateName, affiliateEmail, creditCode, rewardPct, referredFirstName }) {
+    if (!CONFIG.GHL_AFFILIATE_WEBHOOK_URL || CONFIG.GHL_AFFILIATE_WEBHOOK_URL.includes('YOUR_')) {
+      console.warn('GHL_AFFILIATE_WEBHOOK_URL not set — skipping affiliate credit email for', affiliateEmail);
+      return;
+    }
+    const nameParts = (affiliateName || '').trim().split(' ');
+    return fetch(CONFIG.GHL_AFFILIATE_WEBHOOK_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        first_name:          nameParts[0] || '',
+        last_name:           nameParts.slice(1).join(' ') || '',
+        email:               affiliateEmail,
+        credit_coupon_code:  creditCode,
+        reward_pct:          rewardPct,
+        referred_first_name: referredFirstName || '',
+        booking_page_url:    window.location.origin + window.location.pathname,
+        affiliate_page_url:  CONFIG.AFFILIATE_PAGE_URL,
+      }),
+    });
   },
 
   async createAppointment(data) {
