@@ -1137,10 +1137,11 @@ function generateTimeSlots() {
 async function fetchAvailability() {
   // Fetch ALL bookings (both types) + blocked dates/slots in parallel
   const sbH = { 'apikey': CONFIG.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}` };
-  const [res, blockedRes, blockedSlotsRes] = await Promise.all([
+  const [res, blockedRes, blockedSlotsRes, blockedRangesRes] = await Promise.all([
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?select=slots,booking_type&status=neq.cancelled`, { headers: sbH }),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date`, { headers: sbH }),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?select=date,slot_id`, { headers: sbH }),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges?select=date,start_min,end_min,calendars`, { headers: sbH }),
   ]);
   if (!res.ok) throw new Error('Availability fetch failed: ' + res.status);
   const bookings = await res.json();
@@ -1158,6 +1159,18 @@ async function fetchAvailability() {
     bsRows.forEach(r => {
       if (!state.blockedSlots[r.date]) state.blockedSlots[r.date] = new Set();
       state.blockedSlots[r.date].add(r.slot_id);
+    });
+  }
+
+  // Store blocked time ranges (staff blocks a window on chosen calendars;
+  // tolerate a missing table so the page still works pre-migration)
+  state.blockedRanges = {};
+  if (blockedRangesRes.ok) {
+    const brRows = await blockedRangesRes.json();
+    brRows.forEach(r => {
+      if (!Array.isArray(r.calendars) || !r.calendars.includes('srl')) return;
+      if (!state.blockedRanges[r.date]) state.blockedRanges[r.date] = [];
+      state.blockedRanges[r.date].push({ start: r.start_min, end: r.end_min });
     });
   }
 
@@ -1201,9 +1214,12 @@ async function fetchAvailability() {
       const isBlocked    = !!(state.blockedSlots[key] && state.blockedSlots[key].has(slot.id));
       const slotHour     = parseInt(slot.id.slice(0, 2));
       const slotMin      = parseInt(slot.id.slice(2, 4));
+      const startMin     = slotHour * 60 + slotMin;
+      const endMin       = startMin + 15;
+      const inBlockedRange = (state.blockedRanges[key] || []).some(r => startMin < r.end && endMin > r.start);
       const slotDateTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), slotHour, slotMin, 0, 0);
       const isTooSoon    = slotDateTime <= cutoff;
-      avail[key][slot.id] = (isBooked || isBlocked || isTooSoon) ? 'full' : 'available';
+      avail[key][slot.id] = (isBooked || isBlocked || inBlockedRange || isTooSoon) ? 'full' : 'available';
     });
   }
   return avail;
@@ -1224,6 +1240,9 @@ const state = {
   availabilityLoading: false,
   blockedDates:  new Set(),   // full days blocked by staff
   blockedSlots:  {},          // { "YYYY-MM-DD": Set<slotId> } — individual slots blocked
+  blockedRanges: {},          // { "YYYY-MM-DD": [{start,end}] } — staff time-range blocks (minutes)
+  urlCoupon:      null,       // coupon code passed via ?coupon= (staff-sent link)
+  freeLink:       false,      // true when ?coupon= resolves to a 100%-off coupon (bypasses 2-lesson minimum)
   couponCode:     null,       // applied coupon code string
   couponData:     null,       // full coupon row from Supabase
   couponDiscount: 0,          // discount amount in dollars
@@ -1267,6 +1286,25 @@ const App = {
     this.renderProgress();
     this.renderCalendar();
     this.showStep(1);
+
+    // Capture a staff-sent coupon link (?coupon=) — pre-validate so a
+    // 100%-off "free lesson" link can bypass the 2-lesson minimum
+    const couponParam = new URLSearchParams(window.location.search).get('coupon');
+    if (couponParam) {
+      state.urlCoupon = couponParam.trim().toUpperCase();
+      fetch(
+        `${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?code=eq.${encodeURIComponent(state.urlCoupon)}&is_active=eq.true&select=discount_type,discount_value,max_uses,uses_count,expires_at`,
+        { headers: { 'apikey': CONFIG.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}` } }
+      ).then(r => r.ok ? r.json() : []).then(rows => {
+        const c = rows && rows[0];
+        const usable = c
+          && !(c.expires_at && new Date(c.expires_at) < new Date())
+          && !(c.max_uses !== null && c.max_uses !== undefined && c.uses_count >= c.max_uses);
+        if (usable && c.discount_type === 'percent' && parseFloat(c.discount_value) >= 100) {
+          state.freeLink = true;
+        }
+      }).catch(() => {});
+    }
 
     // Load real availability from Supabase in the background
     this.loadAvailability();
@@ -1680,13 +1718,20 @@ const App = {
 
   step2Next() {
     if (state.selectedSlots.length === 0) return;
-    if (state.selectedSlots.length < 2) {
+    if (state.selectedSlots.length < 2 && !state.freeLink) {
       alert('A minimum of 2 lessons ($150.00) is required to proceed to checkout. Please add at least one more slot.');
       return;
     }
     this.startCartTimer();
     this.renderCart();
     this.showStep(3);
+
+    // Auto-apply a staff-sent ?coupon= link
+    const couponInput = document.getElementById('couponInput');
+    if (state.urlCoupon && !state.couponCode && couponInput) {
+      couponInput.value = state.urlCoupon;
+      this.applyCoupon();
+    }
   },
 
   updateCartBadge() {

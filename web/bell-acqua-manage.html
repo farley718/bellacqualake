@@ -247,7 +247,7 @@ const CONFIG = {
   BI_SLOT_PRICE:           148.50,
   SRL_SLOT_PRICE:          75.00,
   SLOT_START:              7,
-  SLOT_END:                19,
+  SLOT_END:                20,
 };
 
 /* ── STATE ── */
@@ -256,6 +256,7 @@ const S = {
   avail:        {},
   blockedDates: new Set(),
   blockedSlots: {},
+  blockedRanges:{},   // { "YYYY-MM-DD": [{start,end}] } — staff time-range blocks (minutes)
   newSlots:     [],   // reschedule selections
   addSlots:     [],   // add-slots selections
   newPartySize: 1,
@@ -272,8 +273,9 @@ function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 function fmt(h,m){ const ap=h<12?'AM':'PM'; return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`; }
 
 function generateBISlots(){
+  // Bottom-of-hour 30-min slots (7:30-8:00 … 7:30-8:00 PM) — must match bell-acqua-booking.html
   const s=[];
-  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++) s.push({id:`${String(h).padStart(2,'0')}00`,startLabel:fmt(h,0),endLabel:fmt(h,30),hour:h,minute:0});
+  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++) s.push({id:`${String(h).padStart(2,'0')}30`,startLabel:fmt(h,30),endLabel:fmt(h+1,0),hour:h,minute:30});
   return s;
 }
 function generateSRLSlots(){
@@ -304,18 +306,27 @@ function isEditable(){
 /* ── AVAILABILITY ── */
 async function fetchAvailability(){
   const isSRL = S.booking?.booking_type==='ski_ride_lesson';
-  const[bRes,bdRes,bsRes]=await Promise.all([
+  const[bRes,bdRes,bsRes,brRes]=await Promise.all([
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?select=id,slots,booking_type&status=neq.cancelled`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?select=date,slot_id`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges?select=date,start_min,end_min,calendars`,{headers:sbH()}),
   ]);
   const bookings=bRes.ok?await bRes.json():[];
   const bdRows=bdRes.ok?await bdRes.json():[];
   const bsRows=bsRes.ok?await bsRes.json():[];
+  const brRows=brRes.ok?await brRes.json():[];
 
   S.blockedDates=new Set(bdRows.map(r=>r.date));
   S.blockedSlots={};
   bsRows.forEach(r=>{ if(!S.blockedSlots[r.date])S.blockedSlots[r.date]=new Set(); S.blockedSlots[r.date].add(r.slot_id); });
+  const calKey=isSRL?'srl':'bi';
+  S.blockedRanges={};
+  brRows.forEach(r=>{
+    if(!Array.isArray(r.calendars)||!r.calendars.includes(calKey))return;
+    if(!S.blockedRanges[r.date])S.blockedRanges[r.date]=[];
+    S.blockedRanges[r.date].push({start:r.start_min,end:r.end_min});
+  });
 
   const booked=new Set();
   bookings.forEach(b=>{
@@ -341,7 +352,9 @@ async function fetchAvailability(){
     timeSlots.forEach(slot=>{
       const sk=`${key}__${slot.id}`;
       const slotTime=new Date(date.getFullYear(),date.getMonth(),date.getDate(),slot.hour,slot.minute,0,0);
-      avail[key][slot.id]=(booked.has(sk)||!!(S.blockedSlots[key]?.has(slot.id))||slotTime<=cutoff)?'full':'available';
+      const sMin=slot.hour*60+slot.minute, eMin=sMin+(isSRL?15:30);
+      const inRange=(S.blockedRanges[key]||[]).some(r=>sMin<r.end&&eMin>r.start);
+      avail[key][slot.id]=(booked.has(sk)||!!(S.blockedSlots[key]?.has(slot.id))||inRange||slotTime<=cutoff)?'full':'available';
     });
   }
   S.avail=avail;
@@ -742,9 +755,14 @@ function showSuccess(title,icon,msg){
 
 /* ── BOOT ── */
 (function init(){
-  const id=new URLSearchParams(window.location.search).get('id');
+  const params=new URLSearchParams(window.location.search);
+  const id=params.get('id')||params.get('ref');
+  const email=params.get('email');
   if(id) document.getElementById('verifyRef').value=id.toUpperCase();
+  if(email) document.getElementById('verifyEmail').value=email;
   document.getElementById('verifyEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') doVerify(); });
+  // Staff-sent reschedule/cancel links carry both params — verify automatically
+  if(id&&email) doVerify();
 })();
 </script>
 </body>

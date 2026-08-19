@@ -393,7 +393,10 @@
     <div class="coupons-wrap">
       <div class="coupons-toolbar">
         <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Coupon Codes</div>
-        <button class="btn-primary" onclick="Dashboard.toggleAddCouponForm()">+ Add Coupon</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-primary" style="background:var(--green);" onclick="Dashboard.promptFreeLink()">🎟️ Free Booking Link</button>
+          <button class="btn-primary" onclick="Dashboard.toggleAddCouponForm()">+ Add Coupon</button>
+        </div>
       </div>
 
       <!-- Add Coupon Form -->
@@ -448,7 +451,10 @@
     <div class="coupons-wrap">
       <div class="coupons-toolbar">
         <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Affiliates & Referral Credits</div>
-        <div style="font-size:.8rem;color:var(--gray);">Friends get 20% off their first booking · affiliates earn a 20% credit coupon per booking. Credits redeem automatically as coupons.</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div id="refDefaultsNote" style="font-size:.8rem;color:var(--gray);">Credits redeem automatically as coupons.</div>
+          <button class="btn-primary" onclick="Dashboard.editAffiliateDefaults()">⚙️ Program Defaults</button>
+        </div>
       </div>
       <div class="coupons-grid" id="referralsGrid">
         <div class="loading-row" style="grid-column:1/-1;"><div class="loading-spinner"></div> Loading referrals…</div>
@@ -544,6 +550,9 @@ const CONFIG = {
   SUPABASE_URL:      'https://euznpkrkkaieykznztho.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
   SLOT_START: 7, SLOT_END: 20, SLOT_PRICE: 148.50,
+  BOOKING_PAGE_URL: 'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-booking.html',
+  LESSON_PAGE_URL:  'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-lesson.html',
+  MANAGE_PAGE_URL:  'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-manage.html',
 };
 
 /* ──────────────────────────────────────────────────────────────
@@ -554,6 +563,8 @@ const DS = {
   waivers:        [],
   blockedDates:   {},  // dateKey → { date, reason }
   blockedSlots:   {},  // dateKey → Set<slotId>  (individual slot blocks)
+  blockedRanges:  {},  // dateKey → [ full rows {id,start_min,end_min,calendars,reason} ]
+  affiliateDefaults: null, // { friend_discount_pct, reward_pct } from app_settings
   coupons:        [],
   affiliates:     [],
   affReferrals:   [],
@@ -586,6 +597,12 @@ function generateTimeSlots(){
 function sbH(extra){
   return Object.assign({'apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},extra||{});
 }
+function fmtMin(min){
+  const h=Math.floor(min/60), m=min%60;
+  const h12=h%12||12; const ap=h>=12?'PM':'AM';
+  return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
+}
+const RANGE_CAL_LABELS={bi:'Beginner/Int.',srl:'Ski w/ Lesson',member:'Member'};
 function statusBadge(s){
   const m={confirmed:['sb-confirmed','✅ Confirmed'],pending_waivers:['sb-pending','⏳ Pending Waivers'],cancelled:['sb-cancelled','✕ Cancelled']};
   const [cls,lbl]=m[s]||['sb-pending',s];
@@ -600,7 +617,7 @@ function waiverBadge(s){
    DATA
    ────────────────────────────────────────────────────────────── */
 async function fetchAll(){
-  const [bRes,wRes,blRes,bsRes,cpRes,mbRes,afRes,arRes] = await Promise.all([
+  const [bRes,wRes,blRes,bsRes,cpRes,mbRes,afRes,arRes,brRes,asRes] = await Promise.all([
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?select=id,first_name,last_name,email,phone,party_size,total_amount,status,slots,booking_type,created_at&order=created_at.desc`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?select=id,booking_id,guest_name,guest_email,status,signed_at,waiver_ref&order=guest_index.asc`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date,reason,blocked_by,created_at`,{headers:sbH()}),
@@ -609,6 +626,8 @@ async function fetchAll(){
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/member_bookings?select=*`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/affiliates_public?select=*&order=created_at.desc`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/affiliate_referrals?select=*&order=created_at.desc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges?select=*&order=date.asc,start_min.asc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/app_settings?key=eq.affiliate_defaults&select=value`,{headers:sbH()}),
   ]);
   let baseBookings = bRes.ok  ? await bRes.json()  : [];
   DS.waivers      = wRes.ok  ? await wRes.json()  : [];
@@ -682,6 +701,22 @@ async function fetchAll(){
       if(!DS.blockedSlots[r.date]) DS.blockedSlots[r.date]={};
       DS.blockedSlots[r.date][r.slot_id]=r; // store full row so we have the id for deletion
     });
+  }
+
+  // Time-range blocks (tolerate a missing table pre-migration)
+  DS.blockedRanges = {};
+  if(brRes && brRes.ok){
+    const rows = await brRes.json();
+    rows.forEach(r=>{
+      if(!DS.blockedRanges[r.date]) DS.blockedRanges[r.date]=[];
+      DS.blockedRanges[r.date].push(r);
+    });
+  }
+
+  // Affiliate program defaults
+  if(asRes && asRes.ok){
+    const rows = await asRes.json();
+    DS.affiliateDefaults = rows.length ? rows[0].value : null;
   }
 
   DS.bookingsByDate = {};
@@ -823,8 +858,19 @@ function renderDayDetail(dateKey){
   const blockBtn=isBlocked
     ? `<button class="block-btn open" onclick="Dashboard.openDate('${dateKey}')">✅ Open This Date</button>`
     : `<button class="block-btn block" onclick="Dashboard.promptBlockDate('${dateKey}')">🚫 Block This Date</button>`;
+  const dayRanges=DS.blockedRanges[dateKey]||[];
   const blockSlotsBtn=!isBlocked
-    ? `<button class="block-btn block" style="background:#fff3cd;color:#856404;border-color:#ffc107;" onclick="Dashboard.promptBlockSlots('${dateKey}')" title="Block or unblock specific time slots">⏱️ Block Slots${blockedSlotCount>0?' ('+blockedSlotCount+')':''}</button>`
+    ? `<button class="block-btn block" style="background:#fff3cd;color:#856404;border-color:#ffc107;" onclick="Dashboard.promptBlockRange('${dateKey}')" title="Block a time window on any of the calendars">⏱️ Block Time Range${dayRanges.length>0?' ('+dayRanges.length+')':''}</button>`
+    : '';
+
+  const rangesBanner=(!isBlocked&&dayRanges.length)
+    ? `<div style="background:#fff8e6;border:1.5px solid #ffc107;border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:14px;">
+        <div style="font-weight:700;color:#856404;font-size:.85rem;margin-bottom:8px;">⏱️ Blocked time ranges on this day</div>
+        ${dayRanges.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.82rem;color:#6b5b1f;padding:4px 0;">
+          <span><strong>${fmtMin(r.start_min)} – ${r.end_min>=1200?'Dark':fmtMin(r.end_min)}</strong> · ${(r.calendars||[]).map(c=>RANGE_CAL_LABELS[c]||c).join(', ')}${r.reason?' · '+r.reason:''}</span>
+          <button class="btn-danger-sm" onclick="Dashboard.deleteBlockRange('${r.id}','${dateKey}')">Remove</button>
+        </div>`).join('')}
+      </div>`
     : '';
 
   const blockedBanner=isBlocked
@@ -1009,6 +1055,7 @@ function renderDayDetail(dateKey){
           <div><div style="font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Waiver Status</div>${waiverRows}</div>
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
             ${b.status!=='cancelled'?`<button class="btn-danger-sm" onclick="Dashboard.cancelBooking('${b.id}','${(name).replace(/'/g,'&#39;')}')">✕ Cancel Booking</button>`:''}
+            ${b.status!=='cancelled'&&b.booking_type!=='member'&&b.email?`<button class="btn-outline-sm" style="padding:6px 12px;" onclick="Dashboard.copyManageLink('${b.id}','${(b.email||'').replace(/'/g,'&#39;')}')" title="Copies a link the guest can use to reschedule or cancel — no login needed">🔗 Copy Reschedule Link</button>`:''}
             <span style="font-size:.72rem;color:var(--gray);align-self:center;">ID: <span style="font-family:monospace;">${b.id}</span></span>
           </div>
         </div>
@@ -1017,7 +1064,7 @@ function renderDayDetail(dateKey){
   }
 
   panel.innerHTML=`${header}${filterBar}
-    ${blockedBanner}
+    ${blockedBanner}${rangesBanner}
     <div class="timeline-wrap">
       <div class="timeline-title">🌊 Beginner / Intermediate Slots (30 min)</div>
       <div class="timeline">${tl}</div>
@@ -1137,6 +1184,13 @@ function renderCoupons(){
 
 function renderReferrals(){
   const grid=document.getElementById('referralsGrid');
+  const noteEl=document.getElementById('refDefaultsNote');
+  if(noteEl){
+    const d=DS.affiliateDefaults;
+    noteEl.textContent=d
+      ?`New affiliates: friend gets ${parseFloat(d.friend_discount_pct)}% off · affiliate earns ${parseFloat(d.reward_pct)}% credit.`
+      :'Credits redeem automatically as coupons.';
+  }
   if(!DS.affiliates.length){
     grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🎁</div><div style="font-weight:600;margin-bottom:4px;">No affiliates yet</div><div style="font-size:.82rem;color:var(--gray);">When someone joins the referral program, they'll show up here with their code and referrals.</div></div>`;
     return;
@@ -1168,7 +1222,8 @@ function renderReferrals(){
       <div class="coupon-value" style="font-size:.95rem;">Code: <span style="font-family:monospace;letter-spacing:1px;">${a.code}</span></div>
       <div class="coupon-meta">
         <div class="info-row">📊 ${refs.length} referral${refs.length===1?'':'s'} · ${usedCount} credit${usedCount===1?'':'s'} used</div>
-        <div class="info-row">🎁 Friend gets ${parseFloat(a.friend_discount_pct)}% · earns ${parseFloat(a.reward_pct)}% credit</div>
+        <div class="info-row">🎁 Friend gets ${parseFloat(a.friend_discount_pct)}% · earns ${parseFloat(a.reward_pct)}% credit
+          <button class="btn-outline-sm" style="padding:2px 8px;font-size:.7rem;margin-left:6px;" onclick="Dashboard.editAffiliateRewards('${a.id}')">✏️ Edit</button></div>
         <div class="info-row">📅 Joined: ${joinedStr}</div>
         ${refRows?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">${refRows}</div>`:''}
       </div>
@@ -1440,6 +1495,194 @@ const Dashboard = {
         }
         await this.loadData();
         this.selectDate(dateKey);
+      }
+    );
+  },
+
+  /* ── Block Time Range (applies across chosen calendars) ── */
+  promptBlockRange(dateKey){
+    const opts=[];
+    for(let min=CONFIG.SLOT_START*60;min<=CONFIG.SLOT_END*60;min+=30) opts.push(min);
+    const startOpts=opts.slice(0,-1).map(m=>`<option value="${m}">${fmtMin(m)}</option>`).join('');
+    const endOpts=opts.slice(1).map(m=>`<option value="${m}" ${m===CONFIG.SLOT_END*60?'selected':''}>${m===CONFIG.SLOT_END*60?'Dark (end of day)':fmtMin(m)}</option>`).join('');
+    const inputStyle='width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:"Inter",sans-serif;outline:none;';
+    this.showModal(
+      `⏱️ Block Time Range — ${fmtDate(dateKey)}`,
+      `<div style="font-size:.82rem;color:var(--gray);margin-bottom:12px;">Blocks every slot that overlaps this window on the calendars you pick. Existing bookings are not affected — cancel those separately if needed.</div>
+       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+         <div class="form-field"><label>From</label><select id="br-start" style="${inputStyle}">${startOpts}</select></div>
+         <div class="form-field"><label>Until</label><select id="br-end" style="${inputStyle}">${endOpts}</select></div>
+       </div>
+       <div style="font-size:.78rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Apply to calendars</div>
+       <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:.85rem;">
+         <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="br-cal-bi" checked/> 🌊 Beginner/Intermediate</label>
+         <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="br-cal-srl" checked/> 🏄 Ski Ride w/ Lesson</label>
+         <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="br-cal-member" checked/> 🏅 Member</label>
+       </div>
+       <div class="form-field"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Reason (optional)</label>
+         <input type="text" id="br-reason" placeholder="e.g. Private event, maintenance…" style="${inputStyle}"/></div>
+       <div id="br-error" style="margin-top:6px;font-size:.8rem;color:var(--red);min-height:16px;"></div>`,
+      'confirm','Block Range',
+      async ()=>{ await this._saveBlockRange(dateKey); }
+    );
+  },
+
+  async _saveBlockRange(dateKey){
+    const start=parseInt(document.getElementById('br-start')?.value);
+    const end=parseInt(document.getElementById('br-end')?.value);
+    const cals=[];
+    if(document.getElementById('br-cal-bi')?.checked)cals.push('bi');
+    if(document.getElementById('br-cal-srl')?.checked)cals.push('srl');
+    if(document.getElementById('br-cal-member')?.checked)cals.push('member');
+    const reason=(document.getElementById('br-reason')?.value||'').trim();
+    // Modal is already closed when this runs — surface validation via alert
+    if(!(end>start)){alert('End time must be after start time — the block was not saved.');return;}
+    if(!cals.length){alert('Pick at least one calendar — the block was not saved.');return;}
+    const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges`,{
+      method:'POST',headers:sbH({'Prefer':'return=minimal'}),
+      body:JSON.stringify({date:dateKey,start_min:start,end_min:end,calendars:cals,reason:reason||null,blocked_by:'staff'}),
+    });
+    if(!res.ok){
+      alert('Could not save the block. If this is the first time using time-range blocks, run the migration 20260820_blocking_and_rewards.sql in the Supabase SQL Editor first.');
+      return;
+    }
+    await this.loadData();
+    this.selectDate(dateKey);
+  },
+
+  deleteBlockRange(id,dateKey){
+    this.showModal(
+      '✅ Remove Time-Range Block',
+      'Re-open this time window for bookings?',
+      'confirm','Remove Block',
+      async ()=>{
+        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges?id=eq.${encodeURIComponent(id)}`,{method:'DELETE',headers:sbH()});
+        await this.loadData();
+        this.selectDate(dateKey);
+      }
+    );
+  },
+
+  /* ── Copy a prefilled reschedule/cancel link for a guest ── */
+  copyManageLink(bookingId,email){
+    const url=`${CONFIG.MANAGE_PAGE_URL}?ref=${encodeURIComponent(bookingId)}&email=${encodeURIComponent(email)}`;
+    const done=()=>alert('Reschedule link copied!\n\nSend it to the guest — it opens their booking directly (no reference number needed) where they can reschedule, add sessions, or cancel.\n\n'+url);
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(done).catch(()=>prompt('Copy this link:',url));
+    } else { prompt('Copy this link:',url); }
+  },
+
+  /* ── Free Booking Link (one-time 100% coupon + prefilled URL) ── */
+  promptFreeLink(){
+    const inputStyle='width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:"Inter",sans-serif;outline:none;';
+    this.showModal(
+      '🎟️ Create Free Booking Link',
+      `<div style="font-size:.82rem;color:var(--gray);margin-bottom:12px;">Creates a one-time 100%-off code and gives you a link to send. The guest picks their own time, pays $0, and still signs the waiver. The link works once, then dies.</div>
+       <div class="form-field" style="margin-bottom:10px;"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Who is this for? (shows on the coupon record)</label>
+         <input type="text" id="fl-desc" placeholder="e.g. Free ride — Jane Smith (make-up session)" style="${inputStyle}"/></div>
+       <div class="form-field"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Calendar</label>
+         <select id="fl-cal" style="${inputStyle}">
+           <option value="bi">🌊 Beginner / Intermediate ride</option>
+           <option value="srl">🏄 Ski Ride w/ Lesson</option>
+         </select></div>
+       <div id="fl-result" style="margin-top:12px;"></div>`,
+      'confirm','Create Link',
+      async ()=>{ await this._saveFreeLink(); }
+    );
+    // Keep the modal open after creating so the link can be copied
+    document.getElementById('modalActions').innerHTML=`
+      <button class="modal-btn cancel" onclick="Dashboard.closeModal()">Close</button>
+      <button class="modal-btn confirm" id="fl-create-btn" onclick="Dashboard._saveFreeLink()">Create Link</button>`;
+  },
+
+  async _saveFreeLink(){
+    const desc=(document.getElementById('fl-desc')?.value||'').trim()||'Free booking link';
+    const cal=document.getElementById('fl-cal')?.value||'bi';
+    const code='FREE-'+Math.random().toString(36).substr(2,6).toUpperCase();
+    const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes`,{
+      method:'POST',headers:sbH({'Prefer':'return=minimal'}),
+      body:JSON.stringify({code,discount_type:'percent',discount_value:100,max_uses:1,is_active:true,description:desc}),
+    });
+    const resultEl=document.getElementById('fl-result');
+    if(!res.ok){
+      if(resultEl)resultEl.innerHTML='<div style="color:var(--red);font-size:.82rem;">Could not create the coupon. Please try again.</div>';
+      return;
+    }
+    const pageUrl=cal==='srl'?CONFIG.LESSON_PAGE_URL:CONFIG.BOOKING_PAGE_URL;
+    const link=`${pageUrl}?coupon=${code}`;
+    if(resultEl){
+      resultEl.innerHTML=`
+        <div style="background:var(--green-light);border:1.5px solid #a8dfc0;border-radius:var(--radius-sm);padding:12px 14px;">
+          <div style="font-weight:700;color:var(--green);font-size:.85rem;margin-bottom:6px;">✅ Free booking link ready — code ${code}</div>
+          <div style="font-family:monospace;font-size:.75rem;word-break:break-all;margin-bottom:8px;">${link}</div>
+          <button class="btn-primary" style="padding:8px 14px;font-size:.8rem;" onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='✓ Copied!')">📋 Copy Link</button>
+        </div>`;
+    }
+    const createBtn=document.getElementById('fl-create-btn');
+    if(createBtn)createBtn.style.display='none';
+    await this.loadData();
+    if(DS.activeTab==='coupons')renderCoupons();
+  },
+
+  /* ── Edit one affiliate's reward percentages ── */
+  editAffiliateRewards(id){
+    const a=DS.affiliates.find(x=>x.id===id);
+    if(!a)return;
+    const inputStyle='width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:"Inter",sans-serif;outline:none;';
+    this.showModal(
+      `✏️ Edit Rewards — ${a.name}`,
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-field"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Friend's discount (% off 1st booking)</label>
+          <input type="number" id="ar-friend" value="${parseFloat(a.friend_discount_pct)}" min="0" max="100" step="1" style="${inputStyle}"/></div>
+        <div class="form-field"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Affiliate's credit (% per referral)</label>
+          <input type="number" id="ar-reward" value="${parseFloat(a.reward_pct)}" min="0" max="100" step="1" style="${inputStyle}"/></div>
+      </div>
+      <div style="font-size:.75rem;color:var(--gray);margin-top:8px;">Applies to this affiliate's future referrals only — credits already earned keep their original value.</div>
+      <div id="ar-error" style="margin-top:6px;font-size:.8rem;color:var(--red);min-height:16px;"></div>`,
+      'confirm','Save Rewards',
+      async ()=>{
+        const friend=parseFloat(document.getElementById('ar-friend')?.value);
+        const reward=parseFloat(document.getElementById('ar-reward')?.value);
+        if(isNaN(friend)||isNaN(reward)||friend<0||friend>100||reward<0||reward>100){alert('Both values must be between 0 and 100 — nothing was saved.');return;}
+        const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/affiliate_set_rewards`,{
+          method:'POST',headers:sbH(),
+          body:JSON.stringify({p_id:id,p_friend_pct:friend,p_reward_pct:reward}),
+        });
+        if(!res.ok){alert('Could not save. If this is the first time editing rewards, run the migration 20260820_blocking_and_rewards.sql in the Supabase SQL Editor first.');return;}
+        await this.loadData();
+        renderReferrals();
+      }
+    );
+  },
+
+  /* ── Edit program defaults for new affiliates ── */
+  editAffiliateDefaults(){
+    const d=DS.affiliateDefaults||{friend_discount_pct:20,reward_pct:20};
+    const inputStyle='width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;font-family:"Inter",sans-serif;outline:none;';
+    this.showModal(
+      '⚙️ Referral Program Defaults',
+      `<div style="font-size:.82rem;color:var(--gray);margin-bottom:12px;">These percentages are given to every NEW affiliate who signs up. Tick the box to also update everyone who already joined.</div>
+       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-field"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Friend's discount (%)</label>
+          <input type="number" id="ad-friend" value="${parseFloat(d.friend_discount_pct)||20}" min="0" max="100" step="1" style="${inputStyle}"/></div>
+        <div class="form-field"><label style="font-size:.78rem;font-weight:600;color:var(--gray);">Affiliate's credit (%)</label>
+          <input type="number" id="ad-reward" value="${parseFloat(d.reward_pct)||20}" min="0" max="100" step="1" style="${inputStyle}"/></div>
+       </div>
+       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;"><input type="checkbox" id="ad-apply"/> Also apply to all existing affiliates</label>
+       <div id="ad-error" style="margin-top:6px;font-size:.8rem;color:var(--red);min-height:16px;"></div>`,
+      'confirm','Save Defaults',
+      async ()=>{
+        const friend=parseFloat(document.getElementById('ad-friend')?.value);
+        const reward=parseFloat(document.getElementById('ad-reward')?.value);
+        const applyAll=!!document.getElementById('ad-apply')?.checked;
+        if(isNaN(friend)||isNaN(reward)||friend<0||friend>100||reward<0||reward>100){alert('Both values must be between 0 and 100 — nothing was saved.');return;}
+        const res=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/affiliate_set_defaults`,{
+          method:'POST',headers:sbH(),
+          body:JSON.stringify({p_friend_pct:friend,p_reward_pct:reward,p_apply_existing:applyAll}),
+        });
+        if(!res.ok){alert('Could not save. If this is the first time editing defaults, run the migration 20260820_blocking_and_rewards.sql in the Supabase SQL Editor first.');return;}
+        await this.loadData();
+        renderReferrals();
       }
     );
   },

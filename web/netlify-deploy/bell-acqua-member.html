@@ -271,6 +271,8 @@ const S = {
   myDayBookings: [],   // { id, slot_start } for current user on selected date
   pendingSlots:  [],   // array of start times selected but not yet saved
   upcoming:      [],
+  blockedDates:  new Set(),  // full days blocked by staff
+  blockedRanges: {},         // { "YYYY-MM-DD": [{start,end}] } — staff time-range blocks (minutes)
 };
 
 /* ── SUPABASE REST ─────────────────────────────────────────── */
@@ -390,8 +392,38 @@ async function startApp() {
   const now = getLADate();
   S.calYear  = now.getFullYear();
   S.calMonth = now.getMonth();
+  await loadBlocks();
   renderCalendar();
   loadUpcoming();
+}
+
+/* ── STAFF BLOCKS (full days + time ranges on the member calendar) ── */
+async function loadBlocks() {
+  try {
+    const [bdRes, brRes] = await Promise.all([
+      fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date`, { headers: hdrs() }),
+      fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges?select=date,start_min,end_min,calendars`, { headers: hdrs() }),
+    ]);
+    if (bdRes.ok) {
+      const rows = await bdRes.json();
+      S.blockedDates = new Set(rows.map(r => r.date));
+    }
+    S.blockedRanges = {};
+    if (brRes.ok) {
+      const rows = await brRes.json();
+      rows.forEach(r => {
+        if (!Array.isArray(r.calendars) || !r.calendars.includes('member')) return;
+        if (!S.blockedRanges[r.date]) S.blockedRanges[r.date] = [];
+        S.blockedRanges[r.date].push({ start: r.start_min, end: r.end_min });
+      });
+    }
+  } catch { /* tolerate pre-migration state — no blocks applied */ }
+}
+
+function isRangeBlocked(dateIso, slotStart) {
+  const s = toMins(slotStart);
+  const e = s + CONFIG.SLOT_MINS;
+  return (S.blockedRanges[dateIso] || []).some(r => s < r.end && e > r.start);
 }
 
 /* ── CALENDAR ──────────────────────────────────────────────── */
@@ -426,8 +458,8 @@ function renderCalendar() {
     let outOfBounds = false;
     if(mStart && date < mStart) outOfBounds = true;
     if(mEnd && date > mEnd) outOfBounds = true;
-    
-    const disabled = past || outOfBounds;
+
+    const disabled = past || outOfBounds || S.blockedDates.has(iso);
     const isTod = date.getTime() === today.getTime();
     const isSel = iso === S.selectedDate;
     let cls = 'cal-cell' + (disabled ? ' past' : ' avail') + (isTod ? ' today' : '') + (isSel ? ' selected' : '');
@@ -462,6 +494,7 @@ function slotStatus(slotStart, takenSlots, myBookings) {
   const isMine = myBookings.some(b => b.slot_start.slice(0,5) === slotStart);
   if (isMine) return 'mine';
   if (S.pendingSlots.includes(slotStart)) return 'pending';
+  if (isRangeBlocked(S.selectedDate, slotStart)) return 'blocked';
   if (takenSlots.some(t => t.slot.slice(0,5) === slotStart)) return 'taken';
   const totalMine = myBookings.length + S.pendingSlots.length;
   if (totalMine >= CONFIG.MAX_PER_DAY) return 'locked';
@@ -559,6 +592,8 @@ function renderSlots() {
         gridHtml += `<button class="slot-btn mine" onclick="cancelSlot('${bk?.id}','${s.start}')" title="Tap to cancel">${timeLabel}<br>✓ ${myName}</button>`;
       } else if (status === 'pending') {
         gridHtml += `<button class="slot-btn pending" onclick="toggleSlot('${s.start}')" title="Tap to deselect">${timeLabel}<br>Selected</button>`;
+      } else if (status === 'blocked') {
+        gridHtml += `<button class="slot-btn taken" disabled>${timeLabel}<br>Unavailable</button>`;
       } else if (status === 'taken') {
         const t = S.takenSlots.find(t => t.slot.slice(0,5) === s.start);
         const tName = formatName(t?.name);
