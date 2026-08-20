@@ -1077,6 +1077,9 @@ const CONFIG = {
   GHL_WORKFLOW_ID:       'YOUR_GHL_CONFIRMATION_WORKFLOW_ID', // Triggered when all waivers signed
   // Inbound Webhook URL for the waiver-email workflow (set in GHL → Automations → your workflow → Trigger → Inbound Webhook)
   GHL_WAIVER_WEBHOOK_URL: 'https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/90997d4a-2fc5-417f-abe5-46da5d021de9',
+  // Inbound Webhook fired when a booking is fully confirmed (same workflow as the B/I page)
+  GHL_BOOKING_CONFIRMED_WEBHOOK_URL: 'https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/954fdb4f-b4ad-4321-aa86-912d78a88079',
+  MANAGE_PAGE_URL: 'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-manage.html',
 
   // ── Stripe ───────────────────────────────────────────────
   STRIPE_PUBLISHABLE_KEY: 'pk_live_51OhcOzIm7mkqF5Db7OYGvDeC9fitsQ8T4hTEW4iHcnki7lGTpWO7BJE8qeXu7g5KbjvWA1OuQc9HVAhwEWJuzD7H00clb21G4v',
@@ -2528,6 +2531,26 @@ const App = {
       slotsEl.appendChild(row);
     });
 
+    // Fire confirmed webhook for bypass (waiver already on file) — single guest only.
+    // Other paths are covered by the waiver page when the last waiver is signed.
+    if (bypassed && !isMulti) {
+      const slotsSummary = sorted.map(s => `${s.date} · ${s.label}`).join(', ');
+      const bookingDateSummary = [...new Set(sorted.map(s => s.date))].sort()
+        .map(d => { const [yr,mo,dy]=d.split('-').map(Number); return new Date(yr,mo-1,dy).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); })
+        .join(', ');
+      GHL.sendBookingConfirmedWebhook({
+        bookingRef:  state.bookingRef,
+        firstName:   state.party.firstName,
+        lastName:    state.party.lastName,
+        email:       state.party.email,
+        phone:       state.party.phone,
+        partySize:   state.party.size,
+        totalAmount: this.getCartTotals().total,
+        slots:       slotsSummary,
+        bookingDate: bookingDateSummary,
+      });
+    }
+
     this.showStep(6);
   },
 
@@ -2643,6 +2666,28 @@ const GHL = {
         booking_date: booking_date || '',
       }),
     });
+  },
+
+  async sendBookingConfirmedWebhook({ bookingRef, firstName, lastName, email, phone, partySize, totalAmount, slots, bookingDate }) {
+    if (!CONFIG.GHL_BOOKING_CONFIRMED_WEBHOOK_URL || CONFIG.GHL_BOOKING_CONFIRMED_WEBHOOK_URL.includes('YOUR_')) return;
+    const manageUrl = `${CONFIG.MANAGE_PAGE_URL}?ref=${encodeURIComponent(bookingRef)}&email=${encodeURIComponent(email)}`;
+    return fetch(CONFIG.GHL_BOOKING_CONFIRMED_WEBHOOK_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        booking_ref:   bookingRef,
+        first_name:    firstName,
+        last_name:     lastName,
+        email,
+        phone:         phone || '',
+        party_size:    partySize,
+        total_amount:  totalAmount,
+        slots:         slots || '',
+        booking_date:  bookingDate || '',
+        manage_url:    manageUrl,
+        status:        'confirmed',
+      }),
+    }).catch(e => console.warn('GHL booking confirmed webhook error:', e));
   },
 
   async createAppointment(data) {

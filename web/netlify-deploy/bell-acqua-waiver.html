@@ -714,7 +714,7 @@ async function checkAndConfirmBooking(bookingId, booking) {
           party_size:   booking.party_size  || rows.length,
           slots:        slotsSummary || (booking.slots || ''),
           booking_date: bookingDateStr || '',
-          manage_url:   `https://meek-duckanoo-53e84b.netlify.app/bell-acqua-manage.html?id=${booking.id || bookingId}`,
+          manage_url:   `https://meek-duckanoo-53e84b.netlify.app/bell-acqua-manage.html?ref=${encodeURIComponent(booking.id || bookingId)}&email=${encodeURIComponent(booking.email || '')}`,
         }),
       });
       console.log('Confirmation webhook fired for booking:', bookingId);
