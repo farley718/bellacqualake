@@ -524,6 +524,15 @@
           </div>
         </div>
       </div>
+
+      <!-- Membership purchases (self-serve checkout) -->
+      <div class="coupons-toolbar" style="margin-top:28px;">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Membership Purchases</div>
+        <div style="font-size:.8rem;color:var(--gray);">Contracts signed through the membership checkout page, with installment tracking.</div>
+      </div>
+      <div class="customers-table-wrap" id="membershipsWrap">
+        <div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">Loading membership purchases…</div></div>
+      </div>
     </div>
   </div>
 
@@ -2052,8 +2061,9 @@ const Dashboard = {
   async loadMembers() {
     const tbody = document.getElementById('membersTableBody');
     tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);"><div class="loading-spinner"></div> Loading...</td></tr>';
+    this.loadMemberships();
     try {
-      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=id,email,first_name,last_name,membership_start,membership_end&order=created_at.desc`, { headers: sbH() });
+      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=id,email,first_name,last_name,membership_start,membership_end,membership_type&order=created_at.desc`, { headers: sbH() });
       if(!res.ok) throw new Error();
       const members = await res.json();
       if(!members.length) {
@@ -2064,10 +2074,15 @@ const Dashboard = {
         const name = `${m.first_name||''} ${m.last_name||''}`.trim() || 'Unknown';
         const start = m.membership_start ? new Date(m.membership_start).toLocaleDateString() : 'N/A';
         const end = m.membership_end ? new Date(m.membership_end).toLocaleDateString() : 'N/A';
+        const planBadge = m.membership_type==='midweek'
+          ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--blue-light);color:var(--navy);border:1px solid #b3ddf0;">🌊 Midweek</span>'
+          : m.membership_type==='unlimited'
+            ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--gold-light);color:#92600a;border:1px solid #eedc9a;">☀️ Unlimited</span>'
+            : '';
         return `
           <tr>
             <td>
-              <div style="font-weight:700;color:var(--navy-dark);">${name}</div>
+              <div style="font-weight:700;color:var(--navy-dark);">${name} ${planBadge}</div>
               <div style="font-size:.75rem;color:var(--gray);margin-top:2px;">${m.email}</div>
               <div style="font-size:.7rem;margin-top:6px;font-weight:600;color:var(--navy);">Active: ${start} – ${end}</div>
             </td>
@@ -2082,6 +2097,83 @@ const Dashboard = {
       tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--red);">Failed to load members.<br/>Please run the SQL snippet in Supabase.</td></tr>';
     }
   },
+  /* ── Membership purchases (self-serve checkout) ── */
+  async loadMemberships(){
+    const wrap=document.getElementById('membershipsWrap');
+    if(!wrap) return;
+    try{
+      const [mRes,pRes]=await Promise.all([
+        fetch(`${CONFIG.SUPABASE_URL}/rest/v1/memberships?select=*&order=created_at.desc`,{headers:sbH()}),
+        fetch(`${CONFIG.SUPABASE_URL}/rest/v1/membership_payments?select=*&order=seq.asc`,{headers:sbH()}),
+      ]);
+      if(!mRes.ok) throw new Error('table missing');
+      const ms=await mRes.json();
+      const pays=pRes.ok?await pRes.json():[];
+      if(!ms.length){
+        wrap.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">No membership purchases yet. Share the checkout page: <span style="font-family:monospace;">bell-acqua-membership.html</span></div></div>';
+        return;
+      }
+      const today=todayKey();
+      const rows=ms.map(m=>{
+        const mp=pays.filter(p=>p.membership_id===m.id);
+        const planBadge=m.plan==='midweek'?'🌊 Midweek':'☀️ Unlimited';
+        const chips=mp.map(p=>{
+          const overdue=p.status==='due'&&p.due_date<today;
+          const color=p.status==='paid'?'background:var(--green-light);color:var(--green);border:1px solid #a8dfc0;'
+            :overdue?'background:var(--red-light);color:var(--red);border:1px solid #f5c6c0;'
+            :'background:var(--gold-light);color:#92600a;border:1px solid #eedc9a;';
+          const markBtn=p.status!=='paid'
+            ?` <a href="#" style="font-weight:700;" onclick="event.preventDefault();Dashboard.markInstallmentPaid('${p.id}','${m.id}',${p.amount},${p.seq})">mark paid</a>`
+            :'';
+          return `<span style="display:inline-block;font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:12px;margin:1px;${color}">#${p.seq} $${parseFloat(p.amount).toFixed(0)} · ${p.status==='paid'?'✓ paid':(overdue?'⚠ overdue':'due '+p.due_date)}${markBtn}</span>`;
+        }).join('');
+        const suppN=Array.isArray(m.supplementary)?m.supplementary.length:0;
+        const addonsStr=(Array.isArray(m.addons)?m.addons:[]).map(a=>a.label).join(', ');
+        return `<tr>
+          <td><div class="cust-name">${m.first_name} ${m.last_name}</div>
+              <div style="font-size:.75rem;color:var(--gray);">${m.email}</div>
+              <div class="cust-ref" style="margin-top:2px;">${m.id}</div></td>
+          <td style="white-space:nowrap;">${planBadge}<br><span style="font-size:.74rem;color:var(--gray);">${m.payment_term==='installment'?'4 quarterly payments':'Paid in full'}</span></td>
+          <td style="font-size:.78rem;">${addonsStr||'—'}${suppN?`<br>👥 ${suppN} supplementary`:''}</td>
+          <td style="white-space:nowrap;">$${parseFloat(m.amount_paid).toFixed(0)} / $${parseFloat(m.total_amount).toFixed(0)}</td>
+          <td>${chips||'—'}</td>
+          <td style="font-size:.75rem;color:var(--gray);white-space:nowrap;">${m.membership_start} →<br>${m.membership_end}</td>
+        </tr>`;
+      }).join('');
+      wrap.innerHTML=`<table class="customers-table">
+        <thead><tr><th>Member</th><th>Plan / Term</th><th>Extras</th><th>Paid / Total</th><th>Payments</th><th>Active</th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    }catch(e){
+      wrap.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">Membership purchases will appear here once the migration <span style="font-family:monospace;">20260820_membership_checkout.sql</span> is run in Supabase.</div></div>';
+    }
+  },
+
+  markInstallmentPaid(payId,membershipId,amount,seq){
+    this.showModal(
+      '💵 Mark Installment Paid',
+      `Record installment <strong>#${seq}</strong> of <strong>$${parseFloat(amount).toFixed(2)}</strong> for <strong>${membershipId}</strong> as paid?<br><br><span style="font-size:.8rem;color:var(--gray);">Use this after charging the member's card in Stripe or receiving their payment directly.</span>`,
+      'confirm','Mark Paid',
+      async ()=>{
+        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/membership_payments?id=eq.${encodeURIComponent(payId)}`,{
+          method:'PATCH',headers:sbH({'Prefer':'return=minimal'}),
+          body:JSON.stringify({status:'paid',paid_at:new Date().toISOString(),note:'Marked paid by staff'}),
+        });
+        // Roll the payment up into the membership's amount_paid
+        const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/memberships?id=eq.${encodeURIComponent(membershipId)}&select=amount_paid`,{headers:sbH()});
+        if(r.ok){
+          const rows=await r.json();
+          if(rows.length){
+            await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/memberships?id=eq.${encodeURIComponent(membershipId)}`,{
+              method:'PATCH',headers:sbH({'Prefer':'return=minimal'}),
+              body:JSON.stringify({amount_paid:parseFloat(rows[0].amount_paid)+parseFloat(amount)}),
+            });
+          }
+        }
+        this.loadMemberships();
+      }
+    );
+  },
+
   resetMemberPassword(id, name) {
     this.showModal(`🔑 Reset Password: ${name}`,
       `<div style="margin-bottom:12px;font-size:.85rem;color:var(--gray);">Enter a new password for <strong>${name}</strong>. Share it with them directly after resetting.</div>

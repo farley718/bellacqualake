@@ -380,10 +380,13 @@ async function startApp() {
   // Display membership dates
   const mStatusEl = document.getElementById('membershipStatus');
   if(mStatusEl) {
+    const planLabel = S.profile && S.profile.membership_type === 'midweek'
+      ? '🌊 Midweek (Mon–Thu) · '
+      : S.profile && S.profile.membership_type === 'unlimited' ? '☀️ Unlimited · ' : '';
     if(S.profile && (S.profile.membership_start || S.profile.membership_end)) {
       const s = S.profile.membership_start ? new Date(S.profile.membership_start + 'T00:00:00').toLocaleDateString() : 'N/A';
       const e = S.profile.membership_end ? new Date(S.profile.membership_end + 'T00:00:00').toLocaleDateString() : 'N/A';
-      mStatusEl.innerHTML = `Active: <strong>${s} – ${e}</strong>`;
+      mStatusEl.innerHTML = `${planLabel}Active: <strong>${s} – ${e}</strong>`;
     } else {
       mStatusEl.textContent = 'No membership dates set';
     }
@@ -459,7 +462,12 @@ function renderCalendar() {
     if(mStart && date < mStart) outOfBounds = true;
     if(mEnd && date > mEnd) outOfBounds = true;
 
-    const disabled = past || outOfBounds || S.blockedDates.has(iso);
+    // Midweek members can only book Monday–Thursday
+    const isMidweek = S.profile && S.profile.membership_type === 'midweek';
+    const dow = date.getDay();
+    const dayNotAllowed = isMidweek && (dow === 0 || dow === 5 || dow === 6);
+
+    const disabled = past || outOfBounds || dayNotAllowed || S.blockedDates.has(iso);
     const isTod = date.getTime() === today.getTime();
     const isSel = iso === S.selectedDate;
     let cls = 'cal-cell' + (disabled ? ' past' : ' avail') + (isTod ? ' today' : '') + (isSel ? ' selected' : '');

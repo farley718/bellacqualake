@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bell Acqua Lake — Become a Member</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    :root{
+      --navy-dark:#0d2137;--navy:#1a3a5c;--blue:#2563eb;--blue-light:#eff6ff;
+      --gold:#c9a84c;--gold-light:#fdf8ec;--green:#16a34a;--green-light:#f0fdf4;
+      --red:#dc2626;--red-light:#fef2f2;--gray:#6b7280;--gray-light:#f3f4f6;
+      --border:#e5e7eb;--bg:#f8fafc;--radius:12px;--radius-sm:8px;
+      --shadow:0 4px 24px rgba(13,33,55,.10);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:#1f2937;min-height:100vh;}
+    .header{background:var(--navy-dark);padding:14px 24px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);}
+    .hdr-logo img{width:42px;height:42px;object-fit:contain;}
+    .hdr-title{font-family:'Montserrat',sans-serif;font-size:1.05rem;font-weight:800;color:white;}
+    .hdr-sub{font-size:.75rem;color:rgba(255,255,255,.6);margin-top:1px;}
+    .main{max-width:680px;margin:0 auto;padding:28px 16px 60px;}
+    .progress{display:flex;gap:6px;margin-bottom:24px;}
+    .prog-step{flex:1;height:5px;border-radius:3px;background:var(--border);}
+    .prog-step.done{background:var(--gold);}
+    .prog-label{font-size:.75rem;color:var(--gray);margin-bottom:20px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;}
+    .card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 24px;margin-bottom:18px;}
+    .card-title{font-family:'Montserrat',sans-serif;font-size:1.15rem;font-weight:800;color:var(--navy-dark);margin-bottom:4px;}
+    .card-sub{font-size:.85rem;color:var(--gray);margin-bottom:18px;}
+    label{display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:5px;}
+    input[type=text],input[type=email],input[type=tel],input[type=password],input[type=date]{
+      width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+      font-size:.92rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;background:white;}
+    input:focus{border-color:var(--blue);}
+    .field{margin-bottom:14px;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media(max-width:540px){.grid-2{grid-template-columns:1fr;}}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:13px 24px;border-radius:var(--radius-sm);
+      font-size:.92rem;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;border:none;transition:all .2s;}
+    .btn-gold{background:var(--gold);color:var(--navy-dark);}
+    .btn-gold:hover{background:#b8973f;}
+    .btn-outline{background:white;color:var(--navy-dark);border:1.5px solid var(--border);}
+    .btn-outline:hover{border-color:var(--navy-dark);}
+    .btn-full{width:100%;}
+    .btn:disabled{opacity:.5;cursor:not-allowed;}
+    .nav-row{display:flex;justify-content:space-between;gap:12px;margin-top:6px;}
+    /* plan cards */
+    .plan-card{border:2px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all .15s;margin-bottom:12px;}
+    .plan-card:hover{border-color:var(--gold);}
+    .plan-card.sel{border-color:var(--gold);background:var(--gold-light);}
+    .plan-name{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--navy-dark);font-size:1rem;}
+    .plan-price{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--gold);font-size:1.3rem;margin:4px 0;}
+    .plan-desc{font-size:.82rem;color:var(--gray);}
+    .term-card{border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;transition:all .15s;}
+    .term-card:hover{border-color:var(--gold);}
+    .term-card.sel{border-color:var(--gold);background:var(--gold-light);}
+    .term-name{font-weight:700;color:var(--navy-dark);font-size:.9rem;}
+    .term-detail{font-size:.78rem;color:var(--gray);margin-top:3px;}
+    /* extras */
+    .extra-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);}
+    .extra-row:last-child{border-bottom:none;}
+    .extra-name{font-weight:700;color:var(--navy-dark);font-size:.92rem;}
+    .extra-desc{font-size:.78rem;color:var(--gray);margin-top:2px;}
+    .qty-wrap{display:flex;align-items:center;gap:10px;}
+    .qty-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:white;font-size:1.1rem;font-weight:700;cursor:pointer;color:var(--navy-dark);}
+    .qty-btn:hover{border-color:var(--gold);}
+    .toggle{position:relative;width:48px;height:26px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .toggle .tslider{position:absolute;inset:0;background:var(--border);border-radius:26px;cursor:pointer;transition:.2s;}
+    .toggle .tslider:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s;}
+    .toggle input:checked + .tslider{background:var(--green);}
+    .toggle input:checked + .tslider:before{transform:translateX(22px);}
+    .supp-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;}
+    /* contract */
+    .contract-box{border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fcfcfd;max-height:380px;overflow-y:auto;padding:18px 20px;font-size:.8rem;line-height:1.55;color:#374151;margin-bottom:16px;}
+    .contract-box h3{font-size:.9rem;color:var(--navy-dark);margin:14px 0 6px;font-family:'Montserrat',sans-serif;}
+    .contract-box h3:first-child{margin-top:0;}
+    .contract-box p{margin-bottom:8px;}
+    .contract-box table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.8rem;}
+    .contract-box td{border:1px solid var(--border);padding:5px 8px;}
+    .sig-canvas{border:1.5px dashed var(--gray);border-radius:var(--radius-sm);background:white;width:100%;height:140px;touch-action:none;cursor:crosshair;}
+    /* summary + payment */
+    .sum-row{display:flex;justify-content:space-between;font-size:.88rem;padding:6px 0;}
+    .sum-row.total{border-top:2px solid var(--navy-dark);margin-top:6px;padding-top:10px;font-weight:800;font-size:1rem;color:var(--navy-dark);}
+    .sum-note{font-size:.76rem;color:var(--gray);}
+    #card-element{padding:13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:white;margin-bottom:10px;}
+    .err{color:var(--red);font-size:.82rem;min-height:18px;margin-top:6px;}
+    .ok-banner{background:var(--green-light);border:1.5px solid #a8dfc0;border-radius:var(--radius-sm);padding:14px 16px;font-size:.85rem;color:#14532d;margin-bottom:14px;}
+    .schedule-box{background:var(--blue-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:.82rem;margin-top:10px;}
+    .spinner{display:inline-block;width:15px;height:15px;border:2px solid rgba(0,0,0,.2);border-top-color:var(--navy-dark);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="hdr-logo"><img src="bell-acqua-logo.png" alt="Bell Acqua Lake"></div>
+  <div>
+    <div class="hdr-title">Bell Acqua Lake</div>
+    <div class="hdr-sub">Membership — Bell Acqua, Inc. Lake One</div>
+  </div>
+</header>
+
+<main class="main">
+  <div class="progress" id="progressBar"></div>
+  <div class="prog-label" id="progLabel"></div>
+
+  <!-- STEP 1 · PLAN & TERM -->
+  <section id="step1">
+    <div class="card">
+      <div class="card-title">Choose Your Membership</div>
+      <div class="card-sub">One-year membership on Bell Acqua Lake One.</div>
+      <div class="plan-card" id="plan-midweek" onclick="App.setPlan('midweek')">
+        <div class="plan-name">🌊 Midweek Membership</div>
+        <div class="plan-price">$1,897<span style="font-size:.8rem;color:var(--gray);font-weight:600;"> / year</span></div>
+        <div class="plan-desc">Ski Monday through Thursday. No Friday, weekend, or holiday skiing.</div>
+      </div>
+      <div class="plan-card" id="plan-unlimited" onclick="App.setPlan('unlimited')">
+        <div class="plan-name">☀️ Unlimited Membership</div>
+        <div class="plan-price">$2,697<span style="font-size:.8rem;color:var(--gray);font-weight:600;"> / year</span></div>
+        <div class="plan-desc">Ski 7 days a week, sunup to sundown.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="font-size:1rem;">Payment Terms</div>
+      <div class="card-sub">Pay in full and save, or split into 4 quarterly payments.</div>
+      <div class="grid-2">
+        <div class="term-card" id="term-full" onclick="App.setTerm('full')">
+          <div class="term-name">💵 Pay in Full</div>
+          <div class="term-detail" id="termFullDetail">Select a membership above</div>
+        </div>
+        <div class="term-card" id="term-installment" onclick="App.setTerm('installment')">
+          <div class="term-name">📆 4 Quarterly Payments</div>
+          <div class="term-detail" id="termInstDetail">Select a membership above</div>
+        </div>
+      </div>
+    </div>
+    <div class="nav-row">
+      <span></span>
+      <button class="btn btn-gold" id="step1Next" onclick="App.goStep(2)" disabled>Continue →</button>
+    </div>
+  </section>
+
+  <!-- STEP 2 · EXTRAS -->
+  <section id="step2" hidden>
+    <div class="card">
+      <div class="card-title">Add-Ons</div>
+      <div class="card-sub">Optional extras, billed with your membership.</div>
+      <div class="extra-row">
+        <div><div class="extra-name">🔐 Locker Rental</div><div class="extra-desc">$200 / year · first-come, first-served (bring your own lock)</div></div>
+        <label class="toggle"><input type="checkbox" id="addonLocker" onchange="App.refreshTotals()"><span class="tslider"></span></label>
+      </div>
+      <div class="extra-row">
+        <div><div class="extra-name">🎫 Guest Passes</div><div class="extra-desc">$300 per book of 10 passes ($30 each)</div></div>
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="App.bumpPasses(-1)">−</button>
+          <strong id="passQty">0</strong>
+          <button class="qty-btn" onclick="App.bumpPasses(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="font-size:1rem;">Supplementary Members</div>
+      <div class="card-sub">Add family or partners to your membership — $1,897 each per year (paid at checkout).</div>
+      <div id="suppList"></div>
+      <button class="btn btn-outline" onclick="App.addSupp()">+ Add Supplementary Member</button>
+    </div>
+    <div class="card">
+      <div class="sum-row"><span>Due today</span><strong id="extrasDueToday">$0.00</strong></div>
+      <div class="sum-note" id="extrasDueNote"></div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-outline" onclick="App.goStep(1)">← Back</button>
+      <button class="btn btn-gold" onclick="App.goStep(3)">Continue →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3 · YOUR INFO -->
+  <section id="step3" hidden>
+    <div class="card">
+      <div class="card-title">Member Information</div>
+      <div class="card-sub">This goes on your membership contract and creates your member-portal login.</div>
+      <div class="grid-2">
+        <div class="field"><label>First Name *</label><input type="text" id="fFirst" placeholder="Jane"></div>
+        <div class="field"><label>Last Name *</label><input type="text" id="fLast" placeholder="Doe"></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label>Email *</label><input type="email" id="fEmail" placeholder="jane@example.com"></div>
+        <div class="field"><label>Cell Phone *</label><input type="tel" id="fPhone" placeholder="(555) 000-0000"></div>
+      </div>
+      <div class="field"><label>Address</label><input type="text" id="fAddress" placeholder="Street, city, state, ZIP"></div>
+      <div class="grid-2">
+        <div class="field"><label>Emergency Contact</label><input type="text" id="fEmergency" placeholder="Name & phone"></div>
+        <div class="field"><label>Driver's License</label><input type="text" id="fLicense" placeholder="Optional"></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label>Date of Birth</label><input type="date" id="fDob"></div>
+        <div></div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:8px 0 14px;"></div>
+      <div class="card-sub" style="margin-bottom:12px;">Create your member-portal password — you'll use it to book your ski times.</div>
+      <div class="grid-2">
+        <div class="field"><label>Portal Password *</label><input type="password" id="fPass" placeholder="Min. 6 characters"></div>
+        <div class="field"><label>Confirm Password *</label><input type="password" id="fPass2" placeholder="Repeat password"></div>
+      </div>
+      <div class="err" id="infoErr"></div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-outline" onclick="App.goStep(2)">← Back</button>
+      <button class="btn btn-gold" onclick="App.validateInfo()">Continue →</button>
+    </div>
+  </section>
+
+  <!-- STEP 4 · CONTRACT -->
+  <section id="step4" hidden>
+    <div class="card">
+      <div class="card-title">Membership Contract</div>
+      <div class="card-sub">Please read the contract, then sign below.</div>
+      <div class="contract-box" id="contractBox"></div>
+      <div class="field"><label>Print Name *</label><input type="text" id="sigName" placeholder="Your full legal name"></div>
+      <label>Signature * <span style="font-weight:400;color:var(--gray);">(draw with mouse or finger)</span></label>
+      <canvas class="sig-canvas" id="sigCanvas"></canvas>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <button class="btn btn-outline" style="padding:8px 14px;font-size:.8rem;" onclick="App.clearSig()">Clear Signature</button>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;margin:0;">
+          <input type="checkbox" id="agreeChk" style="width:auto;"> I have read and agree to all conditions herein
+        </label>
+      </div>
+      <div class="err" id="sigErr"></div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-outline" onclick="App.goStep(3)">← Back</button>
+      <button class="btn btn-gold" onclick="App.validateContract()">Continue to Payment →</button>
+    </div>
+  </section>
+
+  <!-- STEP 5 · PAYMENT -->
+  <section id="step5" hidden>
+    <div class="card">
+      <div class="card-title">Payment</div>
+      <div class="card-sub" id="paysub"></div>
+      <div id="summaryRows"></div>
+      <div class="schedule-box" id="scheduleBox" style="display:none;"></div>
+    </div>
+    <div class="card">
+      <div class="field"><label>Name on Card *</label><input type="text" id="cardName" placeholder="Name as it appears on card"></div>
+      <label>Card Details *</label>
+      <div id="card-element"></div>
+      <div class="err" id="payErr"></div>
+      <button class="btn btn-gold btn-full" id="payBtn" onclick="App.pay()">🔒 Pay <span id="payAmt"></span></button>
+      <div class="sum-note" style="margin-top:8px;text-align:center;">Payments are processed securely by Stripe. Visa & MasterCard accepted.</div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-outline" onclick="App.goStep(4)">← Back</button>
+      <span></span>
+    </div>
+  </section>
+
+  <!-- STEP 6 · DONE -->
+  <section id="step6" hidden>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:3rem;margin-bottom:8px;">🎉</div>
+      <div class="card-title">Welcome to Bell Acqua Lake!</div>
+      <div class="card-sub" id="doneSub"></div>
+      <div class="ok-banner" style="text-align:left;" id="doneDetails"></div>
+      <div class="schedule-box" style="text-align:left;" id="doneSchedule" hidden></div>
+      <a class="btn btn-gold btn-full" style="text-decoration:none;margin-top:14px;" href="bell-acqua-member.html">Open the Member Portal →</a>
+      <div class="sum-note" style="margin-top:10px;">Log in with your email and the portal password you created.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ── CONFIG ── */
+const CONFIG = {
+  SUPABASE_URL:            'https://euznpkrkkaieykznztho.supabase.co',
+  SUPABASE_ANON_KEY:       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
+  STRIPE_PUBLISHABLE_KEY:  'pk_live_51OhcOzIm7mkqF5Db7OYGvDeC9fitsQ8T4hTEW4iHcnki7lGTpWO7BJE8qeXu7g5KbjvWA1OuQc9HVAhwEWJuzD7H00clb21G4v',
+  PAYMENT_INTENT_ENDPOINT: 'https://euznpkrkkaieykznztho.supabase.co/functions/v1/create-payment-intent',
+  // GHL Inbound Webhook that fires the "welcome new member" email.
+  // Create the workflow in GHL, then paste its webhook URL here.
+  GHL_MEMBERSHIP_WEBHOOK_URL: 'YOUR_MEMBERSHIP_WEBHOOK_URL',
+  MEMBER_PORTAL_URL:       'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-member.html',
+};
+
+const PRICING = {
+  midweek:   { label:'Midweek Membership',   full:1897, installment:525, desc:'Monday–Thursday ski times' },
+  unlimited: { label:'Unlimited Membership', full:2697, installment:700, desc:'7 days/week, sunup to sundown' },
+  locker:    200,
+  passBook:  300,
+  supp:      1897,
+};
+
+/* ── STATE ── */
+const S = {
+  step: 1,
+  plan: null,           // 'midweek' | 'unlimited'
+  term: null,           // 'full' | 'installment'
+  locker: false,
+  passBooks: 0,
+  supp: [],             // [{name,email}]
+  info: {},
+  sigData: null,
+  stripe: null, card: null, cardMounted: false,
+  membershipId: null,
+  processing: false,
+};
+
+const sbH = extra => Object.assign({
+  'apikey': CONFIG.SUPABASE_ANON_KEY,
+  'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+  'Content-Type': 'application/json',
+}, extra || {});
+
+const fmt$ = n => '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const longDate = d => d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+const shortDate = d => d.toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
+function addMonths(d, m){ const x=new Date(d); x.setMonth(x.getMonth()+m); return x; }
+function addYears(d, y){ const x=new Date(d); x.setFullYear(x.getFullYear()+y); return x; }
+
+/* ── TOTALS ── */
+function extrasTotal(){ return (S.locker?PRICING.locker:0) + S.passBooks*PRICING.passBook + S.supp.length*PRICING.supp; }
+function planContractValue(){
+  if(!S.plan||!S.term) return 0;
+  const p=PRICING[S.plan];
+  return S.term==='full' ? p.full : p.installment*4;
+}
+function contractTotal(){ return planContractValue() + extrasTotal(); }
+function dueToday(){
+  if(!S.plan||!S.term) return 0;
+  const p=PRICING[S.plan];
+  return (S.term==='full' ? p.full : p.installment) + extrasTotal();
+}
+function installmentDates(){
+  const t=new Date();
+  return [t, addMonths(t,3), addMonths(t,6), addMonths(t,9)];
+}
+
+/* ── APP ── */
+const App = {
+
+  goStep(n){
+    S.step=n;
+    for(let i=1;i<=6;i++) document.getElementById('step'+i).hidden = (i!==n);
+    const labels=['','Step 1 of 5 · Membership & Terms','Step 2 of 5 · Add-Ons','Step 3 of 5 · Your Information','Step 4 of 5 · Contract & Signature','Step 5 of 5 · Payment','Welcome!'];
+    document.getElementById('progLabel').textContent=labels[n];
+    const bar=document.getElementById('progressBar');
+    bar.innerHTML=Array.from({length:5},(_,i)=>`<div class="prog-step ${i<Math.min(n,5)?'done':''}"></div>`).join('');
+    if(n===2) this.refreshTotals();
+    if(n===4) this.renderContract();
+    if(n===5) this.renderPayment();
+    window.scrollTo({top:0,behavior:'smooth'});
+  },
+
+  setPlan(p){
+    S.plan=p;
+    document.getElementById('plan-midweek').classList.toggle('sel',p==='midweek');
+    document.getElementById('plan-unlimited').classList.toggle('sel',p==='unlimited');
+    const pr=PRICING[p];
+    document.getElementById('termFullDetail').textContent=`${fmt$(pr.full)} due today — best value`;
+    document.getElementById('termInstDetail').textContent=`${fmt$(pr.installment)} × 4 (${fmt$(pr.installment*4)} total) — first payment today, then quarterly`;
+    this.checkStep1();
+  },
+
+  setTerm(t){
+    S.term=t;
+    document.getElementById('term-full').classList.toggle('sel',t==='full');
+    document.getElementById('term-installment').classList.toggle('sel',t==='installment');
+    this.checkStep1();
+  },
+
+  checkStep1(){
+    document.getElementById('step1Next').disabled=!(S.plan&&S.term);
+  },
+
+  bumpPasses(d){
+    S.passBooks=Math.max(0,Math.min(5,S.passBooks+d));
+    document.getElementById('passQty').textContent=S.passBooks;
+    this.refreshTotals();
+  },
+
+  addSupp(){
+    if(S.supp.length>=6) return;
+    S.supp.push({name:'',email:''});
+    this.renderSupp();
+    this.refreshTotals();
+  },
+  removeSupp(i){
+    S.supp.splice(i,1);
+    this.renderSupp();
+    this.refreshTotals();
+  },
+  suppChanged(i,field,val){ S.supp[i][field]=val; },
+  renderSupp(){
+    document.getElementById('suppList').innerHTML=S.supp.map((s,i)=>`
+      <div class="supp-row">
+        <input type="text" placeholder="Full name" value="${(s.name||'').replace(/"/g,'&quot;')}" oninput="App.suppChanged(${i},'name',this.value)">
+        <input type="email" placeholder="Email" value="${(s.email||'').replace(/"/g,'&quot;')}" oninput="App.suppChanged(${i},'email',this.value)">
+        <button class="qty-btn" title="Remove" onclick="App.removeSupp(${i})">✕</button>
+      </div>`).join('');
+  },
+
+  refreshTotals(){
+    S.locker=document.getElementById('addonLocker').checked;
+    document.getElementById('extrasDueToday').textContent=fmt$(dueToday());
+    const p=PRICING[S.plan]||{};
+    document.getElementById('extrasDueNote').textContent = S.term==='installment'
+      ? `Includes your first quarterly payment of ${fmt$(p.installment)}. Add-ons and supplementary members are paid in full today.`
+      : 'Full membership plus any add-ons and supplementary members.';
+  },
+
+  validateInfo(){
+    const err=document.getElementById('infoErr');
+    err.textContent='';
+    const g=id=>document.getElementById(id).value.trim();
+    const info={ first:g('fFirst'), last:g('fLast'), email:g('fEmail').toLowerCase(), phone:g('fPhone'),
+                 address:g('fAddress'), emergency:g('fEmergency'), license:g('fLicense'),
+                 dob:g('fDob'), pass:document.getElementById('fPass').value, pass2:document.getElementById('fPass2').value };
+    if(!info.first||!info.last){err.textContent='First and last name are required.';return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email)){err.textContent='Please enter a valid email address.';return;}
+    if(!info.phone){err.textContent='Cell phone is required.';return;}
+    if(info.pass.length<6){err.textContent='Portal password must be at least 6 characters.';return;}
+    if(info.pass!==info.pass2){err.textContent='Passwords do not match.';return;}
+    for(const s of S.supp){
+      if((s.name||s.email)&&!(s.name&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email||''))){
+        err.textContent='Each supplementary member needs a name and a valid email (or remove the row in Add-Ons).';return;
+      }
+    }
+    S.supp=S.supp.filter(s=>s.name&&s.email);
+    S.info=info;
+    const sn=document.getElementById('sigName');
+    if(!sn.value.trim()) sn.value=`${info.first} ${info.last}`;
+    this.goStep(4);
+  },
+
+  /* ── Contract ── */
+  renderContract(){
+    const p=PRICING[S.plan];
+    const start=new Date(), end=addYears(start,1);
+    const memberName=`${S.info.first} ${S.info.last}`;
+    const planPara = S.plan==='midweek'
+      ? 'The price of Membership shall be based on the information contained herein for a Mid-Week Membership. Mid-Week Membership allows skiing Monday through Thursday only; no Friday, weekend, or holiday skiing is included. Contracts will run for a period of one year. The member herein agrees with the payment terms defined below.'
+      : 'The price of Membership shall be based on the information contained herein for an Unlimited Membership. Unlimited Membership allows skiing seven (7) days per week, sunup to sundown. Contracts will run for a period of one year. The member herein agrees with the payment terms defined below.';
+
+    let priceRows=`<tr><td>${p.label}${S.term==='installment'?' (4 quarterly installments)':''}</td><td style="text-align:right;">${fmt$(planContractValue())}</td></tr>`;
+    if(S.locker) priceRows+=`<tr><td>Locker Rental (annual)</td><td style="text-align:right;">${fmt$(PRICING.locker)}</td></tr>`;
+    if(S.passBooks) priceRows+=`<tr><td>Guest Passes (${S.passBooks} book${S.passBooks>1?'s':''} of 10 @ $30.00 each)</td><td style="text-align:right;">${fmt$(S.passBooks*PRICING.passBook)}</td></tr>`;
+    S.supp.forEach(s=>{ priceRows+=`<tr><td>Supplementary Member — ${s.name}</td><td style="text-align:right;">${fmt$(PRICING.supp)}</td></tr>`; });
+    priceRows+=`<tr><td><strong>Total due for ${p.label}</strong></td><td style="text-align:right;"><strong>${fmt$(contractTotal())}</strong></td></tr>`;
+
+    const dates=installmentDates();
+    const termsPara = S.term==='full'
+      ? `Full payment of ${fmt$(contractTotal())} is due at signing on ${shortDate(start)}. No installment plan applies to this contract.`
+      : `The membership fee of ${fmt$(p.installment*4)} shall be paid in four (4) quarterly installments of ${fmt$(p.installment)} each. The first installment${extrasTotal()>0?', together with all add-on and supplementary member fees ('+fmt$(extrasTotal())+'),':''} is due at signing on ${shortDate(dates[0])}. The remaining installments are due on ${shortDate(dates[1])}, ${shortDate(dates[2])}, and ${shortDate(dates[3])}.`;
+
+    document.getElementById('contractBox').innerHTML=`
+      <h3>Bell Acqua Inc. / Bell Acqua Lake One — Membership Contract</h3>
+      <p>Bell Acqua, Inc. (hereinafter “BAI”), for a financial consideration shown below, does hereby grant <strong>${memberName}</strong> (hereinafter "Member") water skiing privileges on Bell Acqua, Inc. Lake One for a period of time defined below. Member hereby agrees to hold Bell Acqua, Inc. harmless from any and all bodily injury and property damage resulting from Member's use of the lake.</p>
+      <p>${planPara}</p>
+      <p>This contract shall be for the period of <strong>${shortDate(start)}</strong> to <strong>${shortDate(end)}</strong> and the price and payment terms shall be as follows:</p>
+      <p><strong>Member Name: ${memberName}</strong></p>
+      <table>${priceRows}</table>
+      <p>We accept Visa and MasterCard and process cards via Stripe.</p>
+      <p><strong>Payment Terms:</strong> ${termsPara}</p>
+      <h3>Billing Policies</h3>
+      <p>On the first day of every month, all Members will be billed, and credit will be charged for ski rides, guest fees, guest rides, boat and RV storage, locker rental, and lake rental used during the prior month. Contracts billed annually will be billed at the contract renewal date. Balances that are past due, defined as 30 days from the date of invoice, will be assessed a 10% finance charge on next month's bill and each month thereafter until the balance is paid in full. If you notice any discrepancy in the monthly billing charges, it is the member's responsibility to contact BAI within 30 days of the invoice date. If there is a delay beyond 30 days, an administrative fee of $25.00 per hour will be charged to the Member for any time incurred while resolving your inquiry, unless the billing fault is found to be with BAI.</p>
+      <p>In the event any payment is overdue within thirty (30) days from the due date, this contract at BAI discretion may be canceled with no refund to Member. In the event of Member's disability or moving out of the state, Member may cancel his/her contract on thirty (30) days' notice to BAI and receive a pro-rated refund based on a 12-month membership. BAI may, at its option, cancel this contract upon ten (10) days' notice to Member; however, such cancellation will result in a pro-rated return of Membership fee to Member.</p>
+      <h3>Lake Closures</h3>
+      <p>BAI will hold tournaments and provide the lake to be used by other parties from time to time, year to year. This will result in lake closures in the early spring and late fall. Included are generally three or four AWSA-sanctioned tournaments, a possible pro-tour event, and/or the Western Regional or National Championships.</p>
+      <h3>Bell Acqua, Inc. agrees to provide the following</h3>
+      <p>1. Each Member is granted an access code to the entrance gate (provided upon activation), locker room key/code, and a security alarm key.</p>
+      <p>2. Use of a ski dock, chemical toilet, and lake facility in its entirety for skiing.</p>
+      <p>3. Parking area for boats and Recreational Vehicles (RVs) is available on the east side of the lake, in the designated parking area. Members have permission to park boats, vehicles, and RVs once pre-approved by management. Please contact management for storage opportunities and the current fee structure. BAI assumes no responsibility or liability for boats, RVs, cars and/or equipment parked on BAI property. Boat and RV parking must be arranged with BAI in advance, and the license plate and owner of the above items are to be provided to BAI. Unauthorized boats, trailers, and RVs may be towed at the owner's expense.</p>
+      <p>Use of a locker is available to Members on a first-come, first-served basis at an additional Two Hundred Dollar ($200.00) fee annually. Fees will be added to your membership dues. Each Member will be provided with a key/code to the locker room but must furnish their own lock for the locker. Members will be expected to maintain security by keeping the locker room door locked and the alarm system activated upon leaving the ski dock. All articles stored in the locker are done so at Members' risk of loss, theft or damage. BAI assumes no responsibility for any property stored on the premises by Members.</p>
+      <p>A "Club Boat" for the use of Members throughout the season (see below for rules).</p>
+      <h3>Club Boat Rules and Conditions</h3>
+      <p><strong>Parking Club Boat:</strong> The Club Boat should be parked in the middle slot of the ski dock. This parking space is designated for the "Club Boat" only. After taking a ski ride, please remove ski gear for the next skier. At the end of the ski day, the Club Boat needs to be parked on the boat lift, raised all the way under the boat lift cover, and wiped down.</p>
+      <p><strong>Boat Ride Fees:</strong> Ski rides are $23.00 per ride. Please take special care of the boats, as it is a privilege. Any neglect of care could result in restricted use by any one party at the discretion of BAI.</p>
+      <p><strong>Boat Usage:</strong> June through mid-August, BAI will run two boats with access to both boat lifts. The remaining months BAI will run one Club Boat and will rotate Club Boats as maintenance is necessary. No shoes, food, sodas, gum or suntan oil is allowed in the boat.</p>
+      <p><strong>Gas:</strong> The Club Boat will be refueled by BAI members using the gas keys hanging in the locker room. When refueling the Club Boat, please document the number of gallons dispensed in HanDBase on the ski log at the time of fueling.</p>
+      <p><strong>Logging your Ski Rides and Guests:</strong> Each time you use the club boat, please log your or a guest's ski ride in HanDBase on the tablet, including your name, date, time, and the odometer reading for each skier. This must be done after each ski ride is taken. A ski ride consists of six slalom passes, four jumps or ten minutes of trick or wakeboard.</p>
+      <p><strong>Book Your Ski Times:</strong> BAI has an interactive ski ride scheduling platform for your convenience. You will be able to see your fellow members' booking times so you can ski together. Ski times are in 15-minute increments on the calendar. Book through the member portal on our website; your login is created with this membership. Cancellations are to be done before midnight the day prior to your scheduled booking or you will be charged for the ski ride.</p>
+      <h3>Rotation Rules</h3>
+      <p>1. If you have not booked your ski times there is a magnetic board on the dock for skier rotation and all members have a magnet with their name or family name on it. Only YOU can put your name in the rotation. 2. Always take your name out of rotation when you are done skiing. 3. If a member has a guest skiing, that guest will ski in the member's rotation. The three "Guest" magnets on the magnetic board are for special guests approved by BAI management.</p>
+      <h3>Guests</h3>
+      <p>1. You are responsible for your guests. Have the guest sign a waiver link on the Website. It is up to the Member to collect the money from their guest(s) for their ski ride(s). 2. Any Non-member/Guest skier must book through the website. 3. Guest passes can be purchased from BAI management at the rate of Three Hundred Dollars ($300.00) for a book of ten passes. If a guest pass is not submitted prior to the monthly billing, the sponsoring member will be charged $30.00 per day for each guest plus the current ski ride fee. 4. Sponsored guests are permitted lake use up to three days per month only and are to ski with sponsoring members. Paid Members shall have priority over any guests. 5. Guest Suspension: Any Non-member/Guest skier not following the guest rules will be suspended from lake use for the rest of the season.</p>
+      <h3>Entering and Leaving the Facility</h3>
+      <p>When entering the property please use the gate code (provided upon activation). BAI asks that all Members drive slowly (15 MPH or less) on the black-topped road leading to the dock. When leaving the premises, each Member must be certain that all garbage and gear is picked up, and the dock is left clean. Please make certain the locker room and storage room doors are locked, and activate the security system.</p>
+      <h3>Parking Automobiles and Trailers</h3>
+      <p>Please park cars in an orderly manner, perpendicular to the dock, facing the airport on the west side of the dock. If pulling a trailer, park on the north side of the parking lot between the golf cart shed and the metal building. No vehicles are permitted south of the dock area except in case of emergency.</p>
+      <h3>When Using the Facility</h3>
+      <p>Keep ski equipment and personal belongings orderly. Store and stack chairs and clean up after yourself. Dogs are welcome but not allowed to run on the dock, and their owners must clean up after them. The BAI use permit does not allow skiing after dark.</p>
+      <h3>Jacuzzi Rules</h3>
+      <p>The Jacuzzi is for Members and their paying guests only. Please shower before entering, refrain from wearing wetsuits in the Jacuzzi, cover the Jacuzzi after each use, and do not allow children under 18 years old without adult supervision within 10 feet.</p>
+      <h3>Sub-Memberships</h3>
+      <p>BAI may grant sub-memberships to UC Davis Team skiers and lake maintenance workers, Monday through Friday, from 8:00 a.m. to 4:00 p.m. All paid members have priority over college skiers.</p>
+      <p>Bell Acqua, Inc. management personnel can be contacted for problems and emergencies (text is best for a fast response): Mike Todd (916) 979-9729 wk / (916) 919-5726 cell · Phillip Todd (916) 515-1211 wk / (916) 215-3127 cell. For billing questions contact: Bell Acqua, Inc. — bellacqualake@comcast.net</p>
+      <p style="margin-top:12px;"><strong>I have read this contract in its entirety and understand and agree to all conditions herein.</strong></p>`;
+    this.initSig();
+  },
+
+  /* ── Signature pad ── */
+  initSig(){
+    const c=document.getElementById('sigCanvas');
+    const ratio=window.devicePixelRatio||1;
+    c.width=c.offsetWidth*ratio; c.height=140*ratio;
+    const ctx=c.getContext('2d');
+    ctx.scale(ratio,ratio);
+    ctx.strokeStyle='#0d2137'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+    let drawing=false, last=null;
+    const pos=e=>{
+      const r=c.getBoundingClientRect();
+      const t=e.touches?e.touches[0]:e;
+      return {x:t.clientX-r.left, y:t.clientY-r.top};
+    };
+    const start=e=>{drawing=true;last=pos(e);e.preventDefault();};
+    const move=e=>{
+      if(!drawing)return;
+      const p=pos(e);
+      ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+      last=p; S.sigData=c.toDataURL('image/png');
+      e.preventDefault();
+    };
+    const end=()=>{drawing=false;};
+    c.onmousedown=start;c.onmousemove=move;c.onmouseup=end;c.onmouseleave=end;
+    c.ontouchstart=start;c.ontouchmove=move;c.ontouchend=end;
+  },
+  clearSig(){
+    const c=document.getElementById('sigCanvas');
+    c.getContext('2d').clearRect(0,0,c.width,c.height);
+    S.sigData=null;
+  },
+
+  validateContract(){
+    const err=document.getElementById('sigErr');
+    err.textContent='';
+    if(!document.getElementById('sigName').value.trim()){err.textContent='Please print your name.';return;}
+    if(!S.sigData){err.textContent='Please sign in the signature box.';return;}
+    if(!document.getElementById('agreeChk').checked){err.textContent='Please tick the box confirming you agree to the contract.';return;}
+    this.goStep(5);
+  },
+
+  /* ── Payment ── */
+  renderPayment(){
+    const p=PRICING[S.plan];
+    const due=dueToday();
+    let rows='';
+    if(S.term==='full'){
+      rows+=`<div class="sum-row"><span>${p.label} (paid in full)</span><span>${fmt$(p.full)}</span></div>`;
+    } else {
+      rows+=`<div class="sum-row"><span>${p.label} — installment 1 of 4</span><span>${fmt$(p.installment)}</span></div>`;
+    }
+    if(S.locker) rows+=`<div class="sum-row"><span>Locker rental (annual)</span><span>${fmt$(PRICING.locker)}</span></div>`;
+    if(S.passBooks) rows+=`<div class="sum-row"><span>Guest passes × ${S.passBooks} book${S.passBooks>1?'s':''}</span><span>${fmt$(S.passBooks*PRICING.passBook)}</span></div>`;
+    S.supp.forEach(s=>{rows+=`<div class="sum-row"><span>Supplementary member — ${s.name}</span><span>${fmt$(PRICING.supp)}</span></div>`;});
+    rows+=`<div class="sum-row total"><span>Due today</span><span>${fmt$(due)}</span></div>`;
+    document.getElementById('summaryRows').innerHTML=rows;
+    document.getElementById('paysub').textContent=`${S.info.first}, here's what you're paying today.`;
+    document.getElementById('payAmt').textContent=fmt$(due);
+
+    const schedEl=document.getElementById('scheduleBox');
+    if(S.term==='installment'){
+      const dates=installmentDates();
+      schedEl.style.display='block';
+      schedEl.innerHTML=`<strong>📆 Your quarterly schedule</strong><br>`+
+        dates.map((d,i)=>`Payment ${i+1}: ${fmt$(p.installment)} — ${i===0?'today':longDate(d)}`).join('<br>');
+    } else schedEl.style.display='none';
+
+    if(!S.cardMounted){
+      try{
+        S.stripe=Stripe(CONFIG.STRIPE_PUBLISHABLE_KEY);
+        const elements=S.stripe.elements();
+        S.card=elements.create('card',{style:{base:{fontSize:'15px',fontFamily:'Inter, sans-serif',color:'#1f2937'}}});
+        S.card.mount('#card-element');
+        S.card.on('change',e=>{document.getElementById('payErr').textContent=e.error?e.error.message:'';});
+        S.cardMounted=true;
+      }catch(e){ console.warn('Stripe mount error:',e); }
+    }
+    if(!document.getElementById('cardName').value) document.getElementById('cardName').value=`${S.info.first} ${S.info.last}`;
+  },
+
+  async pay(){
+    if(S.processing) return;
+    const btn=document.getElementById('payBtn');
+    const err=document.getElementById('payErr');
+    err.textContent='';
+    const cardName=document.getElementById('cardName').value.trim();
+    if(!cardName){err.textContent='Please enter the name on your card.';return;}
+    if(!S.card){err.textContent='Card details not loaded — please refresh and try again.';return;}
+
+    S.processing=true;
+    btn.disabled=true;
+    btn.innerHTML='<span class="spinner"></span>&nbsp;Processing payment…';
+
+    const due=dueToday();
+    S.membershipId='BAM-'+Math.random().toString(36).substr(2,8).toUpperCase();
+
+    try{
+      // 1. Payment intent + charge
+      const piRes=await fetch(CONFIG.PAYMENT_INTENT_ENDPOINT,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`},
+        body:JSON.stringify({
+          amount:Math.round(due*100), currency:'usd',
+          metadata:{ type:'membership', membershipId:S.membershipId, plan:S.plan, term:S.term,
+                     guestName:`${S.info.first} ${S.info.last}`, guestEmail:S.info.email },
+        }),
+      });
+      if(!piRes.ok) throw new Error('Could not start the payment. Please try again.');
+      const {clientSecret}=await piRes.json();
+      if(!clientSecret) throw new Error('Could not start the payment. Please try again.');
+
+      const result=await S.stripe.confirmCardPayment(clientSecret,{
+        payment_method:{card:S.card,billing_details:{name:cardName,email:S.info.email}},
+      });
+      if(result.error) throw new Error(result.error.message||'Your card was declined.');
+      const piId=result.paymentIntent?.id||'';
+
+      // 2. Record the membership + payment schedule + account
+      btn.innerHTML='<span class="spinner"></span>&nbsp;Creating your membership…';
+      await this.recordMembership(piId,due);
+
+      this.showDone();
+    }catch(e){
+      err.textContent=e.message||'Something went wrong. You have not been charged twice — please try again.';
+      btn.disabled=false;
+      btn.innerHTML=`🔒 Pay ${fmt$(due)}`;
+      S.processing=false;
+    }
+  },
+
+  async recordMembership(piId,paidToday){
+    const p=PRICING[S.plan];
+    const start=new Date(), end=addYears(start,1);
+    const addons=[];
+    if(S.locker) addons.push({key:'locker',label:'Locker rental',price:PRICING.locker});
+    if(S.passBooks) addons.push({key:'guest_passes',label:`Guest passes × ${S.passBooks} book(s)`,qty:S.passBooks,price:S.passBooks*PRICING.passBook});
+
+    // Membership row (the paid record — most important write, do it first)
+    const mRes=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/memberships`,{
+      method:'POST',headers:sbH({'Prefer':'return=minimal'}),
+      body:JSON.stringify({
+        id:S.membershipId,
+        first_name:S.info.first,last_name:S.info.last,email:S.info.email,phone:S.info.phone,
+        address:S.info.address||null,emergency_contact:S.info.emergency||null,
+        drivers_license:S.info.license||null,date_of_birth:S.info.dob||null,
+        plan:S.plan,addons,supplementary:S.supp,
+        payment_term:S.term,total_amount:contractTotal(),amount_paid:paidToday,
+        installment_amount:S.term==='installment'?p.installment:null,
+        membership_start:dk(start),membership_end:dk(end),
+        waiver_name:document.getElementById('sigName').value.trim(),
+        waiver_signature:S.sigData,waiver_signed_at:new Date().toISOString(),
+        status:'active',stripe_pi:piId,
+      }),
+    });
+    if(!mRes.ok){
+      const t=await mRes.text();
+      throw new Error(`Your payment went through, but we could not finish creating your membership. Please contact us with reference ${S.membershipId}. (${t.slice(0,120)})`);
+    }
+
+    // Payment schedule rows
+    const payments=[];
+    if(S.term==='full'){
+      payments.push({membership_id:S.membershipId,seq:1,amount:paidToday,due_date:dk(start),status:'paid',paid_at:new Date().toISOString(),stripe_pi:piId,note:'Paid in full at signing'});
+    } else {
+      const dates=installmentDates();
+      payments.push({membership_id:S.membershipId,seq:1,amount:paidToday,due_date:dk(dates[0]),status:'paid',paid_at:new Date().toISOString(),stripe_pi:piId,note:'First installment + add-ons at signing'});
+      for(let i=1;i<4;i++){
+        payments.push({membership_id:S.membershipId,seq:i+1,amount:p.installment,due_date:dk(dates[i]),status:'due'});
+      }
+    }
+    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/membership_payments`,{
+      method:'POST',headers:sbH({'Prefer':'return=minimal'}),
+      body:JSON.stringify(payments),
+    }).catch(()=>{});
+
+    // Portal account (ok if the email is already registered)
+    try{
+      await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/signup`,{
+        method:'POST',headers:sbH(),
+        body:JSON.stringify({
+          email:S.info.email,password:S.info.pass,
+          data:{first_name:S.info.first,last_name:S.info.last,full_name:`${S.info.first} ${S.info.last}`,
+                membership_start:dk(start),membership_end:dk(end),membership_type:S.plan},
+        }),
+      });
+    }catch(e){ console.warn('signup:',e); }
+
+    // Provision/refresh the profiles row (matches the auth user by email)
+    try{
+      const actRes=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/membership_activate`,{
+        method:'POST',headers:sbH(),
+        body:JSON.stringify({p_membership_id:S.membershipId}),
+      });
+      S.activated=actRes.ok?await actRes.json():{ok:false};
+    }catch(e){ S.activated={ok:false}; }
+
+    // Welcome email via GHL (skipped until the webhook URL is configured)
+    if(CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL&&!CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL.includes('YOUR_')){
+      const dates=installmentDates();
+      fetch(CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          membership_id:S.membershipId,
+          first_name:S.info.first,last_name:S.info.last,email:S.info.email,phone:S.info.phone,
+          plan:p.label,payment_term:S.term,
+          total_amount:contractTotal().toFixed(2),paid_today:paidToday.toFixed(2),
+          installment_amount:S.term==='installment'?p.installment.toFixed(2):'',
+          next_payment_dates:S.term==='installment'?[dates[1],dates[2],dates[3]].map(shortDate).join(', '):'',
+          membership_start:dk(start),membership_end:dk(end),
+          portal_url:CONFIG.MEMBER_PORTAL_URL,
+          supplementary:S.supp.map(s=>`${s.name} <${s.email}>`).join('; '),
+        }),
+      }).catch(()=>{});
+    }
+  },
+
+  showDone(){
+    const p=PRICING[S.plan];
+    document.getElementById('doneSub').textContent=`Your ${p.label} is active. Reference: ${S.membershipId}`;
+    const act=S.activated&&S.activated.ok;
+    document.getElementById('doneDetails').innerHTML=`
+      ✅ Payment received: <strong>${fmt$(dueToday())}</strong><br>
+      ✅ Contract signed and on file<br>
+      ${act?'✅ Member portal account ready — log in and book your ski times':'⚠️ Your portal account needs a final touch from our staff — you\'ll get an email when it\'s ready'}<br>
+      ${S.supp.length?`👥 Supplementary member${S.supp.length>1?'s':''}: ${S.supp.map(s=>s.name).join(', ')} — our staff will set up their portal access`:''}`;
+    if(S.term==='installment'){
+      const dates=installmentDates();
+      const sc=document.getElementById('doneSchedule');
+      sc.hidden=false;
+      sc.innerHTML=`<strong>📆 Remaining payments</strong><br>`+
+        [1,2,3].map(i=>`${fmt$(p.installment)} due ${longDate(dates[i])}`).join('<br>');
+    }
+    this.goStep(6);
+  },
+};
+
+App.goStep(1);
+</script>
+</body>
+</html>
