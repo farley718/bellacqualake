@@ -371,7 +371,7 @@
         <div class="search-input-wrap" style="margin-left:0;">
           <span class="search-icon">🔍</span>
           <input type="text" class="search-input" id="custSearch" placeholder="Name, email, ref, phone…"
-            oninput="Dashboard.renderCustomers()" style="width:260px;" />
+            oninput="Dashboard.custSearchChanged()" style="width:260px;" />
         </div>
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
           <div class="filter-chip active" id="custFilterAll" onclick="Dashboard.setCustFilter('all')">All</div>
@@ -565,6 +565,8 @@ const DS = {
   blockedSlots:   {},  // dateKey → Set<slotId>  (individual slot blocks)
   blockedRanges:  {},  // dateKey → [ full rows {id,start_min,end_min,calendars,reason} ]
   affiliateDefaults: null, // { friend_discount_pct, reward_pct } from app_settings
+  pageSize:       { customers:20, coupons:20, referrals:20 },
+  page:           { customers:1,  coupons:1,  referrals:1  },
   coupons:        [],
   affiliates:     [],
   affReferrals:   [],
@@ -603,6 +605,31 @@ function fmtMin(min){
   return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
 }
 const RANGE_CAL_LABELS={bi:'Beginner/Int.',srl:'Ski w/ Lesson',member:'Member'};
+
+/* ── Table pagination (customers / coupons / referrals) ── */
+function paginate(list,key){
+  const size=DS.pageSize[key]||20;
+  const pages=Math.max(1,Math.ceil(list.length/size));
+  if(DS.page[key]>pages)DS.page[key]=pages;
+  if(DS.page[key]<1)DS.page[key]=1;
+  const page=DS.page[key];
+  const start=(page-1)*size;
+  return {slice:list.slice(start,start+size),total:list.length,page,pages,start:start+1,end:Math.min(start+size,list.length)};
+}
+function paginationBar(key,p){
+  if(!p.total)return '';
+  const sizes=[20,40,100].map(s=>`<option value="${s}" ${DS.pageSize[key]===s?'selected':''}>${s}</option>`).join('');
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;background:white;border-top:1px solid var(--border);font-size:.8rem;color:var(--gray);">
+    <span>Showing <strong>${p.start}–${p.end}</strong> of <strong>${p.total}</strong></span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <label>View</label>
+      <select onchange="Dashboard.setPageSize('${key}',parseInt(this.value))" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:.78rem;font-family:'Inter',sans-serif;">${sizes}</select>
+      <button class="btn-outline-sm" ${p.page<=1?'disabled style="opacity:.4;cursor:default;"':''} onclick="Dashboard.setPage('${key}',${p.page-1})">‹ Prev</button>
+      <span style="white-space:nowrap;">Page ${p.page} / ${p.pages}</span>
+      <button class="btn-outline-sm" ${p.page>=p.pages?'disabled style="opacity:.4;cursor:default;"':''} onclick="Dashboard.setPage('${key}',${p.page+1})">Next ›</button>
+    </div>
+  </div>`;
+}
 function statusBadge(s){
   const m={confirmed:['sb-confirmed','✅ Confirmed'],pending_waivers:['sb-pending','⏳ Pending Waivers'],cancelled:['sb-cancelled','✕ Cancelled']};
   const [cls,lbl]=m[s]||['sb-pending',s];
@@ -1109,7 +1136,8 @@ function renderCustomers(){
     return;
   }
 
-  const rows=bks.map(b=>{
+  const pg=paginate(bks,'customers');
+  const rows=pg.slice.map(b=>{
     const name=`${b.first_name||''} ${b.last_name||''}`.trim()||'Unknown';
     const wrs=waiverMap[b.id]||[];
     const allSigned=wrs.length>0&&wrs.every(w=>w.status==='signed');
@@ -1141,7 +1169,7 @@ function renderCustomers(){
       <th>Booked Dates</th><th>Amount</th><th>Status</th><th>Waivers</th><th>Booked On</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>${paginationBar('customers',pg)}`;
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -1154,7 +1182,8 @@ function renderCoupons(){
     grid.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🎟️</div><div style="font-weight:600;margin-bottom:4px;">No coupons yet</div><div style="font-size:.82rem;color:var(--gray);">Click "+ Add Coupon" to create your first coupon code.</div></div>`;
     return;
   }
-  const rows=DS.coupons.map(c=>{
+  const pg=paginate(DS.coupons,'coupons');
+  const rows=pg.slice.map(c=>{
     const val=c.discount_type==='buy2get1'
       ?'🎁 Buy 2 Get 1 FREE'
       :c.discount_type==='percent'
@@ -1181,7 +1210,7 @@ function renderCoupons(){
       <th>Code</th><th>Discount</th><th>Description</th><th>Uses</th><th>Expires</th><th>Status</th><th></th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>${paginationBar('coupons',pg)}`;
 }
 
 function renderReferrals(){
@@ -1198,7 +1227,8 @@ function renderReferrals(){
     grid.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🎁</div><div style="font-weight:600;margin-bottom:4px;">No affiliates yet</div><div style="font-size:.82rem;color:var(--gray);">When someone joins the referral program, they'll show up here with their code and referrals.</div></div>`;
     return;
   }
-  const rows=DS.affiliates.map(a=>{
+  const pg=paginate(DS.affiliates,'referrals');
+  const rows=pg.slice.map(a=>{
     const refs=DS.affReferrals.filter(r=>r.affiliate_id===a.id);
     const creditFor=code=>DS.coupons.find(c=>c.code===code);
     const usedCount=refs.filter(r=>{const c=creditFor(r.credit_coupon_code);return c&&c.max_uses&&(c.uses_count||0)>=c.max_uses;}).length;
@@ -1232,7 +1262,7 @@ function renderReferrals(){
       <th>Affiliate</th><th>Code</th><th>Friend % / Earn %</th><th>Referrals</th><th>Credits</th><th>Joined</th><th>Status</th><th></th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>${paginationBar('referrals',pg)}`;
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -1327,10 +1357,16 @@ const Dashboard = {
 
   setCustFilter(f){
     DS.custFilter=f;
+    DS.page.customers=1;
     ['all','confirmed','pending_waivers','cancelled'].forEach(x=>{
       const el=document.getElementById('custFilter'+({all:'All',confirmed:'Confirmed',pending_waivers:'Pending',cancelled:'Cancelled'}[x]));
       if(el)el.classList.toggle('active',x===f);
     });
+    renderCustomers();
+  },
+
+  custSearchChanged(){
+    DS.page.customers=1;
     renderCustomers();
   },
 
@@ -1626,6 +1662,22 @@ const Dashboard = {
     if(createBtn)createBtn.style.display='none';
     await this.loadData();
     if(DS.activeTab==='coupons')renderCoupons();
+  },
+
+  /* ── Table pagination controls ── */
+  setPageSize(key,size){
+    DS.pageSize[key]=size;
+    DS.page[key]=1;
+    this._rerenderPaged(key);
+  },
+  setPage(key,page){
+    DS.page[key]=page;
+    this._rerenderPaged(key);
+  },
+  _rerenderPaged(key){
+    if(key==='customers')renderCustomers();
+    else if(key==='coupons')renderCoupons();
+    else renderReferrals();
   },
 
   /* ── Expand/collapse an affiliate's referral list ── */
