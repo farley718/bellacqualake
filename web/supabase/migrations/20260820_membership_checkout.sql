@@ -43,8 +43,14 @@ CREATE TABLE IF NOT EXISTS public.memberships (
   status             text        NOT NULL DEFAULT 'active'
                                  CHECK (status IN ('active','pending','cancelled')),
   stripe_pi          text,
+  stripe_customer    text,                               -- Stripe Customer id (card saved for auto-charge)
+  stripe_payment_method text,                            -- saved card used for quarterly installments
   created_at         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Re-run safety: add the auto-charge columns if the table pre-dates them
+ALTER TABLE public.memberships ADD COLUMN IF NOT EXISTS stripe_customer text;
+ALTER TABLE public.memberships ADD COLUMN IF NOT EXISTS stripe_payment_method text;
 
 CREATE INDEX IF NOT EXISTS memberships_email_idx ON public.memberships (lower(email));
 

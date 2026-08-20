@@ -279,6 +279,9 @@ const CONFIG = {
   SUPABASE_ANON_KEY:       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
   STRIPE_PUBLISHABLE_KEY:  'pk_live_51OhcOzIm7mkqF5Db7OYGvDeC9fitsQ8T4hTEW4iHcnki7lGTpWO7BJE8qeXu7g5KbjvWA1OuQc9HVAhwEWJuzD7H00clb21G4v',
   PAYMENT_INTENT_ENDPOINT: 'https://euznpkrkkaieykznztho.supabase.co/functions/v1/create-payment-intent',
+  // Creates a Stripe Customer + saves the card so installments 2–4 can be
+  // auto-charged. Deploy web/supabase/functions/membership-checkout first.
+  MEMBERSHIP_CHECKOUT_ENDPOINT: 'https://euznpkrkkaieykznztho.supabase.co/functions/v1/membership-checkout',
   // GHL Inbound Webhook that fires the "welcome new member" email.
   // Create the workflow in GHL, then paste its webhook URL here.
   GHL_MEMBERSHIP_WEBHOOK_URL: 'YOUR_MEMBERSHIP_WEBHOOK_URL',
@@ -329,10 +332,19 @@ function planContractValue(){
   return S.term==='full' ? p.full : p.installment*4;
 }
 function contractTotal(){ return planContractValue() + extrasTotal(); }
+/* Installment plan covers EVERYTHING — membership, add-ons, and
+   supplementary members all split across the 4 quarterly payments.
+   Payments 1–3 are equal; payment 4 absorbs any cent rounding. */
+function installmentAmounts(){
+  const p=PRICING[S.plan];
+  const total=contractTotal();
+  const per=Math.round((p.installment + extrasTotal()/4)*100)/100;
+  const last=Math.round((total-per*3)*100)/100;
+  return [per,per,per,last];
+}
 function dueToday(){
   if(!S.plan||!S.term) return 0;
-  const p=PRICING[S.plan];
-  return (S.term==='full' ? p.full : p.installment) + extrasTotal();
+  return S.term==='full' ? contractTotal() : installmentAmounts()[0];
 }
 function installmentDates(){
   const t=new Date();
@@ -406,9 +418,8 @@ const App = {
   refreshTotals(){
     S.locker=document.getElementById('addonLocker').checked;
     document.getElementById('extrasDueToday').textContent=fmt$(dueToday());
-    const p=PRICING[S.plan]||{};
     document.getElementById('extrasDueNote').textContent = S.term==='installment'
-      ? `Includes your first quarterly payment of ${fmt$(p.installment)}. Add-ons and supplementary members are paid in full today.`
+      ? `First of 4 quarterly payments — membership, add-ons, and supplementary members are all split across the plan (${fmt$(contractTotal())} total).`
       : 'Full membership plus any add-ons and supplementary members.';
   },
 
@@ -452,9 +463,11 @@ const App = {
     priceRows+=`<tr><td><strong>Total due for ${p.label}</strong></td><td style="text-align:right;"><strong>${fmt$(contractTotal())}</strong></td></tr>`;
 
     const dates=installmentDates();
+    const amts=S.term==='installment'?installmentAmounts():[];
+    const allEq=amts.length&&amts.every(a=>a===amts[0]);
     const termsPara = S.term==='full'
       ? `Full payment of ${fmt$(contractTotal())} is due at signing on ${shortDate(start)}. No installment plan applies to this contract.`
-      : `The membership fee of ${fmt$(p.installment*4)} shall be paid in four (4) quarterly installments of ${fmt$(p.installment)} each. The first installment${extrasTotal()>0?', together with all add-on and supplementary member fees ('+fmt$(extrasTotal())+'),':''} is due at signing on ${shortDate(dates[0])}. The remaining installments are due on ${shortDate(dates[1])}, ${shortDate(dates[2])}, and ${shortDate(dates[3])}.`;
+      : `The total contract value of ${fmt$(contractTotal())} — including all add-ons and supplementary members — shall be paid in four (4) quarterly installments${allEq?` of ${fmt$(amts[0])} each`:` of ${fmt$(amts[0])}, ${fmt$(amts[1])}, ${fmt$(amts[2])}, and ${fmt$(amts[3])}`}. The first installment is due at signing on ${shortDate(dates[0])} and will be charged to the card provided at checkout. The remaining installments are due on ${shortDate(dates[1])}, ${shortDate(dates[2])}, and ${shortDate(dates[3])}, and Member authorizes BAI to automatically charge the card on file on each due date.`;
 
     document.getElementById('contractBox').innerHTML=`
       <h3>Bell Acqua Inc. / Bell Acqua Lake One — Membership Contract</h3>
@@ -548,15 +561,16 @@ const App = {
     const p=PRICING[S.plan];
     const due=dueToday();
     let rows='';
-    if(S.term==='full'){
-      rows+=`<div class="sum-row"><span>${p.label} (paid in full)</span><span>${fmt$(p.full)}</span></div>`;
-    } else {
-      rows+=`<div class="sum-row"><span>${p.label} — installment 1 of 4</span><span>${fmt$(p.installment)}</span></div>`;
-    }
+    rows+=`<div class="sum-row"><span>${p.label}${S.term==='installment'?' (installment plan)':''}</span><span>${fmt$(planContractValue())}</span></div>`;
     if(S.locker) rows+=`<div class="sum-row"><span>Locker rental (annual)</span><span>${fmt$(PRICING.locker)}</span></div>`;
     if(S.passBooks) rows+=`<div class="sum-row"><span>Guest passes × ${S.passBooks} book${S.passBooks>1?'s':''}</span><span>${fmt$(S.passBooks*PRICING.passBook)}</span></div>`;
     S.supp.forEach(s=>{rows+=`<div class="sum-row"><span>Supplementary member — ${s.name}</span><span>${fmt$(PRICING.supp)}</span></div>`;});
-    rows+=`<div class="sum-row total"><span>Due today</span><span>${fmt$(due)}</span></div>`;
+    if(S.term==='installment'){
+      rows+=`<div class="sum-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;"><span>Contract total (4 quarterly payments)</span><span>${fmt$(contractTotal())}</span></div>`;
+      rows+=`<div class="sum-row total"><span>Due today — payment 1 of 4</span><span>${fmt$(due)}</span></div>`;
+    } else {
+      rows+=`<div class="sum-row total"><span>Due today</span><span>${fmt$(due)}</span></div>`;
+    }
     document.getElementById('summaryRows').innerHTML=rows;
     document.getElementById('paysub').textContent=`${S.info.first}, here's what you're paying today.`;
     document.getElementById('payAmt').textContent=fmt$(due);
@@ -564,9 +578,10 @@ const App = {
     const schedEl=document.getElementById('scheduleBox');
     if(S.term==='installment'){
       const dates=installmentDates();
+      const amts=installmentAmounts();
       schedEl.style.display='block';
       schedEl.innerHTML=`<strong>📆 Your quarterly schedule</strong><br>`+
-        dates.map((d,i)=>`Payment ${i+1}: ${fmt$(p.installment)} — ${i===0?'today':longDate(d)}`).join('<br>');
+        dates.map((d,i)=>`Payment ${i+1}: ${fmt$(amts[i])} — ${i===0?'today':longDate(d)+' (charged automatically to your card)'}`).join('<br>');
     } else schedEl.style.display='none';
 
     if(!S.cardMounted){
@@ -599,18 +614,25 @@ const App = {
     S.membershipId='BAM-'+Math.random().toString(36).substr(2,8).toUpperCase();
 
     try{
-      // 1. Payment intent + charge
-      const piRes=await fetch(CONFIG.PAYMENT_INTENT_ENDPOINT,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`},
-        body:JSON.stringify({
-          amount:Math.round(due*100), currency:'usd',
-          metadata:{ type:'membership', membershipId:S.membershipId, plan:S.plan, term:S.term,
-                     guestName:`${S.info.first} ${S.info.last}`, guestEmail:S.info.email },
-        }),
-      });
+      // 1. Payment intent + charge. The membership-checkout function also
+      //    creates a Stripe Customer and saves the card for the quarterly
+      //    auto-charges; fall back to the plain payment-intent endpoint if
+      //    it isn't deployed yet (installments then need manual charging).
+      const piBody={
+        amount:Math.round(due*100), currency:'usd',
+        email:S.info.email, name:`${S.info.first} ${S.info.last}`,
+        metadata:{ type:'membership', membershipId:S.membershipId, plan:S.plan, term:S.term,
+                   guestName:`${S.info.first} ${S.info.last}`, guestEmail:S.info.email },
+      };
+      const piHeaders={'Content-Type':'application/json','apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`};
+      let piRes=await fetch(CONFIG.MEMBERSHIP_CHECKOUT_ENDPOINT,{method:'POST',headers:piHeaders,body:JSON.stringify(piBody)}).catch(()=>null);
+      if(!piRes||!piRes.ok){
+        piRes=await fetch(CONFIG.PAYMENT_INTENT_ENDPOINT,{method:'POST',headers:piHeaders,body:JSON.stringify(piBody)});
+      }
       if(!piRes.ok) throw new Error('Could not start the payment. Please try again.');
-      const {clientSecret}=await piRes.json();
+      const piData=await piRes.json();
+      const clientSecret=piData.clientSecret;
+      S.stripeCustomer=piData.customerId||null;
       if(!clientSecret) throw new Error('Could not start the payment. Please try again.');
 
       const result=await S.stripe.confirmCardPayment(clientSecret,{
@@ -618,6 +640,7 @@ const App = {
       });
       if(result.error) throw new Error(result.error.message||'Your card was declined.');
       const piId=result.paymentIntent?.id||'';
+      S.stripePM=result.paymentIntent?.payment_method||null;
 
       // 2. Record the membership + payment schedule + account
       btn.innerHTML='<span class="spinner"></span>&nbsp;Creating your membership…';
@@ -649,11 +672,13 @@ const App = {
         drivers_license:S.info.license||null,date_of_birth:S.info.dob||null,
         plan:S.plan,addons,supplementary:S.supp,
         payment_term:S.term,total_amount:contractTotal(),amount_paid:paidToday,
-        installment_amount:S.term==='installment'?p.installment:null,
+        installment_amount:S.term==='installment'?installmentAmounts()[0]:null,
         membership_start:dk(start),membership_end:dk(end),
         waiver_name:document.getElementById('sigName').value.trim(),
         waiver_signature:S.sigData,waiver_signed_at:new Date().toISOString(),
         status:'active',stripe_pi:piId,
+        stripe_customer:S.stripeCustomer||null,
+        stripe_payment_method:S.stripePM||null,
       }),
     });
     if(!mRes.ok){
@@ -667,9 +692,10 @@ const App = {
       payments.push({membership_id:S.membershipId,seq:1,amount:paidToday,due_date:dk(start),status:'paid',paid_at:new Date().toISOString(),stripe_pi:piId,note:'Paid in full at signing'});
     } else {
       const dates=installmentDates();
-      payments.push({membership_id:S.membershipId,seq:1,amount:paidToday,due_date:dk(dates[0]),status:'paid',paid_at:new Date().toISOString(),stripe_pi:piId,note:'First installment + add-ons at signing'});
+      const amts=installmentAmounts();
+      payments.push({membership_id:S.membershipId,seq:1,amount:amts[0],due_date:dk(dates[0]),status:'paid',paid_at:new Date().toISOString(),stripe_pi:piId,note:'First quarterly installment at signing'});
       for(let i=1;i<4;i++){
-        payments.push({membership_id:S.membershipId,seq:i+1,amount:p.installment,due_date:dk(dates[i]),status:'due'});
+        payments.push({membership_id:S.membershipId,seq:i+1,amount:amts[i],due_date:dk(dates[i]),status:'due'});
       }
     }
     await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/membership_payments`,{
@@ -729,10 +755,11 @@ const App = {
       ${S.supp.length?`👥 Supplementary member${S.supp.length>1?'s':''}: ${S.supp.map(s=>s.name).join(', ')} — our staff will set up their portal access`:''}`;
     if(S.term==='installment'){
       const dates=installmentDates();
+      const amts=installmentAmounts();
       const sc=document.getElementById('doneSchedule');
       sc.hidden=false;
-      sc.innerHTML=`<strong>📆 Remaining payments</strong><br>`+
-        [1,2,3].map(i=>`${fmt$(p.installment)} due ${longDate(dates[i])}`).join('<br>');
+      sc.innerHTML=`<strong>📆 Remaining payments</strong> (charged automatically to your card)<br>`+
+        [1,2,3].map(i=>`${fmt$(amts[i])} due ${longDate(dates[i])}`).join('<br>');
     }
     this.goStep(6);
   },

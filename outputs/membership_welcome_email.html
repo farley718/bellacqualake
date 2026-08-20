@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to Bell Acqua Lake</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:24px 0;">
+<tr><td align="center">
+
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(13,33,55,0.10);">
+
+  <!-- Header -->
+  <tr><td style="background-color:#0d2137;padding:32px 40px;text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.5px;">BELL ACQUA LAKE</div>
+    <div style="font-size:12px;color:#c9a84c;letter-spacing:2px;text-transform:uppercase;margin-top:6px;">Membership Confirmed</div>
+  </td></tr>
+
+  <!-- Hero -->
+  <tr><td style="padding:36px 40px 8px;">
+    <div style="font-size:26px;font-weight:800;color:#0d2137;">Welcome to the lake, {{inboundWebhookRequest.first_name}}! 🎉</div>
+    <p style="font-size:15px;line-height:1.6;color:#374151;margin:14px 0 0;">
+      Your <strong>{{inboundWebhookRequest.plan}}</strong> is active and your signed contract is on file.
+      You're all set to start booking your ski times.
+    </p>
+  </td></tr>
+
+  <!-- Membership summary card -->
+  <tr><td style="padding:24px 40px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fdf8ec;border:1px solid #e8d9a8;border-radius:10px;">
+      <tr><td style="padding:20px 24px;">
+        <div style="font-size:12px;font-weight:700;color:#92600a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Your Membership</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#374151;">
+          <tr>
+            <td style="padding:4px 0;color:#6b7280;">Reference</td>
+            <td style="padding:4px 0;text-align:right;font-weight:700;color:#0d2137;">{{inboundWebhookRequest.membership_id}}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;color:#6b7280;">Plan</td>
+            <td style="padding:4px 0;text-align:right;font-weight:700;color:#0d2137;">{{inboundWebhookRequest.plan}}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;color:#6b7280;">Active</td>
+            <td style="padding:4px 0;text-align:right;font-weight:700;color:#0d2137;">{{inboundWebhookRequest.membership_start}} &ndash; {{inboundWebhookRequest.membership_end}}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;color:#6b7280;">Paid today</td>
+            <td style="padding:4px 0;text-align:right;font-weight:700;color:#16a34a;">${{inboundWebhookRequest.paid_today}}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;color:#6b7280;">Contract total</td>
+            <td style="padding:4px 0;text-align:right;font-weight:700;color:#0d2137;">${{inboundWebhookRequest.total_amount}}</td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- Payment schedule (blank for paid-in-full members) -->
+  <tr><td style="padding:16px 40px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:10px;">
+      <tr><td style="padding:16px 24px;">
+        <div style="font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:6px;">📆 Payment plan</div>
+        <div style="font-size:13px;line-height:1.6;color:#374151;">
+          Remaining quarterly payments of <strong>${{inboundWebhookRequest.installment_amount}}</strong> will be charged
+          automatically to your card on: <strong>{{inboundWebhookRequest.next_payment_dates}}</strong>
+        </div>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- Portal button -->
+  <tr><td style="padding:28px 40px 8px;text-align:center;">
+    <a href="{{inboundWebhookRequest.portal_url}}" style="display:inline-block;background-color:#c9a84c;color:#0d2137;font-size:16px;font-weight:800;text-decoration:none;padding:15px 44px;border-radius:8px;">Book My Ski Times &rarr;</a>
+    <div style="font-size:12px;color:#6b7280;margin-top:10px;">Log in with this email address and the portal password you created at checkout.</div>
+  </td></tr>
+
+  <!-- What's next -->
+  <tr><td style="padding:24px 40px 8px;">
+    <div style="font-size:15px;font-weight:800;color:#0d2137;margin-bottom:10px;">What happens next</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.7;color:#374151;">
+      <tr><td style="padding:3px 0;">🔑 &nbsp;Watch for a separate message with your <strong>gate code, locker room key/code, and alarm key</strong> details.</td></tr>
+      <tr><td style="padding:3px 0;">📅 &nbsp;Book ski times in the member portal — up to 2 slots per day.</td></tr>
+      <tr><td style="padding:3px 0;">🛥️ &nbsp;Club Boat rides are $23/ride — log every ride in HanDBase on the dock tablet.</td></tr>
+      <tr><td style="padding:3px 0;">🎫 &nbsp;Guests must sign the waiver on our website before skiing.</td></tr>
+    </table>
+  </td></tr>
+
+  <!-- Contact -->
+  <tr><td style="padding:24px 40px 32px;">
+    <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:13px;line-height:1.7;color:#6b7280;">
+      Questions? Text is fastest:<br>
+      <strong style="color:#374151;">Mike Todd</strong> — (916) 919-5726 &nbsp;·&nbsp; <strong style="color:#374151;">Phillip Todd</strong> — (916) 215-3127<br>
+      Billing: <a href="mailto:bellacqualake@comcast.net" style="color:#2563eb;">bellacqualake@comcast.net</a>
+    </div>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="background-color:#0d2137;padding:18px 40px;text-align:center;">
+    <div style="font-size:11px;color:rgba(255,255,255,0.6);">Bell Acqua, Inc. · 930 E Street, Rio Linda, CA 95673</div>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
