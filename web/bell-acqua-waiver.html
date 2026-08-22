@@ -641,12 +641,39 @@ function sbHeaders(extra) {
 
 async function fetchWaiverByToken(token) {
   const res = await fetch(
-    `${WAIVER_CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?token=eq.${encodeURIComponent(token)}&select=*,bookings(*)`,
+    `${WAIVER_CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?token=eq.${encodeURIComponent(token)}&select=*,bookings(*)`,   // membership_id is a plain column; no embed needed
     { headers: sbHeaders() }
   );
   if (!res.ok) throw new Error('Fetch failed: ' + res.status);
   const rows = await res.json();
   return rows && rows.length > 0 ? rows[0] : null;
+}
+
+// Membership waivers: once every person on the membership has signed,
+// membership_waiver_check() flips the membership to 'active' and provisions the
+// member-portal profile. Until then the membership stays 'pending' and the
+// portal refuses to take bookings.
+async function checkAndActivateMembership(membershipId) {
+  try {
+    const res = await fetch(
+      `${WAIVER_CONFIG.SUPABASE_URL}/rest/v1/rpc/membership_waiver_check`,
+      {
+        method:  'POST',
+        headers: sbHeaders(),
+        body:    JSON.stringify({ p_membership_id: membershipId }),
+      }
+    );
+    if (!res.ok) {
+      console.error('membership_waiver_check failed:', await res.text());
+      return null;
+    }
+    const out = await res.json();
+    console.log('membership_waiver_check:', membershipId, out);
+    return out;
+  } catch (e) {
+    console.error('membership_waiver_check error:', e);
+    return null;
+  }
 }
 
 // Check if every waiver_request for a booking is signed; if so fire confirmation
@@ -1173,6 +1200,41 @@ const WaiverApp = {
     document.getElementById('errorState').style.display    = 'block';
   },
 
+  // Membership waiver: tell the signer whether the membership is now live or
+  // still waiting on other people, and send them to the portal when it is.
+  showMembershipThankYou(firstName, membershipId, result) {
+    document.getElementById('waiverForm').style.display   = 'none';
+    document.getElementById('loadingState').style.display = 'none';
+
+    const portalUrl = 'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-member.html';
+    const activated = !!(result && result.ok && result.activated);
+    const pending   = (result && typeof result.pending === 'number') ? result.pending : null;
+
+    let body;
+    if (activated) {
+      body = `<span style="font-size:1.5rem;">&#127881;</span><br/>
+        Thanks ${firstName} &mdash; your waiver is signed.<br/><br/>
+        <strong>Your membership is now active.</strong><br/>
+        <span style="font-size:0.85rem;color:#6b7280;">Reference: ${membershipId}</span><br/><br/>
+        <a href="${portalUrl}" style="display:inline-block;padding:12px 22px;background:#1a4a6e;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Open the member portal &rarr;</a>`;
+    } else if (pending !== null && pending > 0) {
+      body = `<span style="font-size:1.5rem;">&#9989;</span><br/>
+        Thanks ${firstName} &mdash; your waiver is signed.<br/><br/>
+        We are still waiting on <strong>${pending} more waiver${pending>1?'s':''}</strong> from the other skier${pending>1?'s':''} on this membership.
+        The member portal unlocks and ski times can be booked as soon as everyone has signed.<br/><br/>
+        <span style="font-size:0.85rem;color:#6b7280;">Reference: ${membershipId}</span>`;
+    } else {
+      body = `<span style="font-size:1.5rem;">&#9989;</span><br/>
+        Thanks ${firstName} &mdash; your waiver is signed.<br/><br/>
+        <span style="font-size:0.85rem;color:#6b7280;">Reference: ${membershipId}</span><br/>
+        <span style="font-size:0.85rem;color:#6b7280;">If your portal is not open yet, our staff will be in touch shortly.</span>`;
+    }
+
+    document.getElementById('thankYouBody').innerHTML = body;
+    document.getElementById('thankYouState').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
   showThankYou(firstName, bookingId, waiverRef) {
     document.getElementById('waiverForm').style.display   = 'none';
     document.getElementById('loadingState').style.display = 'none';
@@ -1445,12 +1507,23 @@ const WaiverApp = {
         await checkAndConfirmBooking(bookingId, booking);
       }
 
+      // Membership waiver: activate the membership once everyone has signed
+      const membershipId = waiverRecord ? (waiverRecord.membership_id || '') : '';
+      let membershipResult = null;
+      if (membershipId) {
+        membershipResult = await checkAndActivateMembership(membershipId);
+      }
+
       // Determine first name for thank you message
       const firstName = waiverRecord
         ? (waiverRecord.guest_name || '').split(' ')[0]
         : 'Guest';
 
-      this.showThankYou(firstName, bookingId || 'your booking', newWaiverRef);
+      if (membershipId) {
+        this.showMembershipThankYou(firstName, membershipId, membershipResult);
+      } else {
+        this.showThankYou(firstName, bookingId || 'your booking', newWaiverRef);
+      }
 
     } catch (err) {
       console.error('Waiver submit error:', err);

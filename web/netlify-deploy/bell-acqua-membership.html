@@ -286,6 +286,7 @@ const CONFIG = {
   // Create the workflow in GHL, then paste its webhook URL here.
   GHL_MEMBERSHIP_WEBHOOK_URL: 'YOUR_MEMBERSHIP_WEBHOOK_URL',
   MEMBER_PORTAL_URL:       'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-member.html',
+  WAIVER_PAGE_URL:         'https://meek-duckanoo-53e84b.netlify.app/bell-acqua-waiver.html',
 };
 
 const PRICING = {
@@ -321,6 +322,10 @@ const fmt$ = n => '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits
 const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const longDate = d => d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
 const shortDate = d => d.toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
+function newWaiverToken(){
+  if(window.crypto&&crypto.randomUUID) return crypto.randomUUID().replace(/-/g,'');
+  return (Math.random().toString(36).substr(2)+Math.random().toString(36).substr(2)+Date.now().toString(36)).slice(0,32);
+}
 function addMonths(d, m){ const x=new Date(d); x.setMonth(x.getMonth()+m); return x; }
 function addYears(d, y){ const x=new Date(d); x.setFullYear(x.getFullYear()+y); return x; }
 
@@ -676,7 +681,7 @@ const App = {
         membership_start:dk(start),membership_end:dk(end),
         waiver_name:document.getElementById('sigName').value.trim(),
         waiver_signature:S.sigData,waiver_signed_at:new Date().toISOString(),
-        status:'active',stripe_pi:piId,
+        status:'pending',stripe_pi:piId,   // activated only once every waiver is signed
         stripe_customer:S.stripeCustomer||null,
         stripe_payment_method:S.stripePM||null,
       }),
@@ -715,14 +720,43 @@ const App = {
       });
     }catch(e){ console.warn('signup:',e); }
 
-    // Provision/refresh the profiles row (matches the auth user by email)
+    // Liability waivers -- one per person on the membership (primary + each
+    // supplementary member). The membership stays 'pending' and the portal
+    // stays locked until every one of them is signed; the waiver page calls
+    // membership_waiver_check() which flips it to 'active'.
+    //
+    // NOTE: the signature captured on the contract step above is the MEMBERSHIP
+    // AGREEMENT (fees, guest rules, payment terms). It carries no release of
+    // liability -- that is what these waivers are for.
+    S.waivers=[];
+    const people=[{name:`${S.info.first} ${S.info.last}`,email:S.info.email,primary:true}]
+      .concat(S.supp.map(x=>({name:x.name,email:x.email,primary:false})));
+    const rows=people.map((person,i)=>({
+      membership_id:S.membershipId,
+      guest_index:i,
+      guest_name:person.name,
+      guest_email:person.email,
+      token:newWaiverToken(),
+      status:'pending',
+      phone:person.primary?(S.info.phone||null):null,
+    }));
     try{
-      const actRes=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/membership_activate`,{
-        method:'POST',headers:sbH(),
-        body:JSON.stringify({p_membership_id:S.membershipId}),
+      const wRes=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests`,{
+        method:'POST',headers:sbH({'Prefer':'return=minimal'}),
+        body:JSON.stringify(rows),
       });
-      S.activated=actRes.ok?await actRes.json():{ok:false};
-    }catch(e){ S.activated={ok:false}; }
+      if(!wRes.ok){
+        const t=await wRes.text();
+        console.error('waiver_requests insert failed:',t);
+        S.waiverError=true;
+      }else{
+        S.waivers=rows.map((r,i)=>({
+          name:r.guest_name,email:r.guest_email,primary:people[i].primary,
+          url:`${CONFIG.WAIVER_PAGE_URL}?token=${encodeURIComponent(r.token)}`,
+        }));
+      }
+    }catch(e){ console.error('waiver_requests insert error:',e); S.waiverError=true; }
+    S.activated={ok:false,pending_waivers:S.waivers.length};
 
     // Welcome email via GHL (skipped until the webhook URL is configured)
     if(CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL&&!CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL.includes('YOUR_')){
@@ -739,6 +773,13 @@ const App = {
           membership_start:dk(start),membership_end:dk(end),
           portal_url:CONFIG.MEMBER_PORTAL_URL,
           supplementary:S.supp.map(s=>`${s.name} <${s.email}>`).join('; '),
+          // Waiver links -- membership stays locked until every one is signed
+          membership_status:'pending_waivers',
+          waiver_url:(S.waivers.find(x=>x.primary)||{}).url||'',
+          waivers_total:S.waivers.length,
+          waivers:S.waivers.map(x=>({name:x.name,email:x.email,waiver_url:x.url,is_primary:x.primary})),
+          supplementary_waivers:S.waivers.filter(x=>!x.primary)
+            .map(x=>`${x.name} <${x.email}>: ${x.url}`).join('; '),
         }),
       }).catch(()=>{});
     }
@@ -746,13 +787,23 @@ const App = {
 
   showDone(){
     const p=PRICING[S.plan];
-    document.getElementById('doneSub').textContent=`Your ${p.label} is active. Reference: ${S.membershipId}`;
-    const act=S.activated&&S.activated.ok;
+    document.getElementById('doneSub').textContent=`Payment received. Reference: ${S.membershipId}`;
+    const w=S.waivers||[];
+    const mine=w.find(x=>x.primary);
+    const others=w.filter(x=>!x.primary);
+    const linkRow=(x)=>`<div style="margin:6px 0;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;text-align:left;">
+        <div style="font-weight:600;font-size:.82rem;">${x.name}</div>
+        <div style="font-size:.72rem;color:#6b7280;margin-bottom:6px;">${x.email}</div>
+        <a href="${x.url}" style="font-size:.75rem;word-break:break-all;">${x.url}</a>
+      </div>`;
     document.getElementById('doneDetails').innerHTML=`
-      ✅ Payment received: <strong>${fmt$(dueToday())}</strong><br>
-      ✅ Contract signed and on file<br>
-      ${act?'✅ Member portal account ready — log in and book your ski times':'⚠️ Your portal account needs a final touch from our staff — you\'ll get an email when it\'s ready'}<br>
-      ${S.supp.length?`👥 Supplementary member${S.supp.length>1?'s':''}: ${S.supp.map(s=>s.name).join(', ')} — our staff will set up their portal access`:''}`;
+      &#9989; Payment received: <strong>${fmt$(dueToday())}</strong><br>
+      &#9989; Membership agreement signed and on file<br>
+      ${S.waiverError
+        ? '&#9888;&#65039; We could not create your waiver links. Please contact us with your reference number and we will send them over.'
+        : '&#8987; <strong>One step left:</strong> every skier on this membership must sign the liability waiver before the member portal unlocks and ski times can be booked.'}
+      ${mine?`<div style="margin-top:14px;"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px;">Your waiver</div>${linkRow(mine)}</div>`:''}
+      ${others.length?`<div style="margin-top:12px;"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px;">Send these to your supplementary member${others.length>1?'s':''}</div>${others.map(linkRow).join('')}<div style="font-size:.72rem;color:#6b7280;margin-top:6px;">Each person opens their own link and signs. The portal unlocks once all ${w.length} waivers are in.</div></div>`:''}`;
     if(S.term==='installment'){
       const dates=installmentDates();
       const amts=installmentAmounts();

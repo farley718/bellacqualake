@@ -373,6 +373,40 @@ async function startApp() {
     S.profile = {};
   }
 
+  // Gate: the portal only takes bookings once the membership is ACTIVE, which
+  // means every skier on it has signed their liability waiver. A profile row
+  // with membership dates is only provisioned by membership_waiver_check() /
+  // membership_activate() after the last waiver lands. No dates => locked.
+  // (Previously a missing profile meant NO date restriction at all, so an
+  //  unactivated account could book anything.)
+  S.locked = !(S.profile && S.profile.membership_start && S.profile.membership_end);
+  S.lockReason = '';
+  if (S.locked) {
+    try {
+      const mRes = await fetch(
+        `${CONFIG.SUPABASE_URL}/rest/v1/memberships?email=eq.${encodeURIComponent(S.user.email)}&select=id,status,created_at&order=created_at.desc&limit=1`,
+        { headers: hdrs() }
+      );
+      const ms = mRes.ok ? await mRes.json() : [];
+      const m  = ms[0];
+      if (m && m.status === 'pending') {
+        const wRes = await fetch(
+          `${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?membership_id=eq.${encodeURIComponent(m.id)}&select=guest_name,status`,
+          { headers: hdrs() }
+        );
+        const ws = wRes.ok ? await wRes.json() : [];
+        const outstanding = ws.filter(x => x.status !== 'signed');
+        S.lockReason = outstanding.length
+          ? `Your membership is not active yet - we are still waiting on ${outstanding.length} signed waiver${outstanding.length>1?'s':''}: ${outstanding.map(x=>x.guest_name).join(', ')}.`
+          : 'Your membership is being finalised. Please refresh in a moment.';
+      } else {
+        S.lockReason = 'Your membership is not active yet. Please contact Bell Acqua Lake staff.';
+      }
+    } catch (e) {
+      S.lockReason = 'Your membership is not active yet. Please contact Bell Acqua Lake staff.';
+    }
+  }
+
   const md = S.user.user_metadata || {};
   const name = (md.first_name ? `${md.first_name} ${md.last_name || ''}` : md.full_name) || S.user.email;
   document.getElementById('memberName').textContent = name;
@@ -383,7 +417,9 @@ async function startApp() {
     const planLabel = S.profile && S.profile.membership_type === 'midweek'
       ? '🌊 Midweek (Mon–Thu) · '
       : S.profile && S.profile.membership_type === 'unlimited' ? '☀️ Unlimited · ' : '';
-    if(S.profile && (S.profile.membership_start || S.profile.membership_end)) {
+    if(S.locked) {
+      mStatusEl.innerHTML = `<span style="color:#b45309;font-weight:700;">&#9888;&#65039; Booking locked</span>`;
+    } else if(S.profile && (S.profile.membership_start || S.profile.membership_end)) {
       const s = S.profile.membership_start ? new Date(S.profile.membership_start + 'T00:00:00').toLocaleDateString() : 'N/A';
       const e = S.profile.membership_end ? new Date(S.profile.membership_end + 'T00:00:00').toLocaleDateString() : 'N/A';
       mStatusEl.innerHTML = `${planLabel}Active: <strong>${s} – ${e}</strong>`;
@@ -397,6 +433,14 @@ async function startApp() {
   S.calMonth = now.getMonth();
   await loadBlocks();
   renderCalendar();
+  if (S.locked) {
+    const panel = document.getElementById('slotPanel');
+    if (panel) panel.innerHTML =
+      `<div style="margin:20px;padding:16px 18px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;color:#7a4a00;font-size:.85rem;line-height:1.6;">
+         <strong>&#9888;&#65039; Booking is locked</strong><br>${S.lockReason}
+         <div style="margin-top:8px;font-size:.78rem;">Check your email for the waiver link. Once every skier on the membership has signed, this unlocks automatically.</div>
+       </div>`;
+  }
   loadUpcoming();
 }
 
@@ -467,7 +511,7 @@ function renderCalendar() {
     const dow = date.getDay();
     const dayNotAllowed = isMidweek && (dow === 0 || dow === 5 || dow === 6);
 
-    const disabled = past || outOfBounds || dayNotAllowed || S.blockedDates.has(iso);
+    const disabled = S.locked || past || outOfBounds || dayNotAllowed || S.blockedDates.has(iso);
     const isTod = date.getTime() === today.getTime();
     const isSel = iso === S.selectedDate;
     let cls = 'cal-cell' + (disabled ? ' past' : ' avail') + (isTod ? ' today' : '') + (isSel ? ' selected' : '');
