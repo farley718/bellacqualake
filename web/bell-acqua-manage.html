@@ -273,9 +273,10 @@ function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 function fmt(h,m){ const ap=h<12?'AM':'PM'; return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`; }
 
 function generateBISlots(){
-  // Bottom-of-hour 30-min slots (7:30-8:00 … 7:30-8:00 PM) — must match bell-acqua-booking.html
+  // Top-of-hour 30-min slots (7:00-7:30 … 7:00-7:30 PM) — must match bell-acqua-booking.html
+  // The bottom of each hour (:30-:00) is reserved for members only.
   const s=[];
-  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++) s.push({id:`${String(h).padStart(2,'0')}30`,startLabel:fmt(h,30),endLabel:fmt(h+1,0),hour:h,minute:30});
+  for(let h=CONFIG.SLOT_START;h<CONFIG.SLOT_END;h++) s.push({id:`${String(h).padStart(2,'0')}00`,startLabel:fmt(h,0),endLabel:fmt(h,30),hour:h,minute:0});
   return s;
 }
 function generateSRLSlots(){

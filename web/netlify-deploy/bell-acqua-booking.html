@@ -1130,8 +1130,9 @@ const CONFIG = {
    MOCK AVAILABILITY GENERATOR
    Replace with real GHL Calendar API calls in production.
    ────────────────────────────────────────────────────────────────── */
-/* Generates bottom-of-hour 30-min slots from SLOT_START to SLOT_END-1.
-   e.g. 7:30-8:00, 8:30-9:00 … 7:30-8:00 PM */
+/* Generates top-of-hour 30-min slots from SLOT_START to SLOT_END-1.
+   e.g. 7:00-7:30, 8:00-8:30 … 7:00-7:30 PM
+   The bottom of each hour (:30-:00) is reserved for members only. */
 function generateTimeSlots() {
   const slots = [];
   const fmt = (h, m) => {
@@ -1139,15 +1140,15 @@ function generateTimeSlots() {
     const ap  = h >= 12 ? 'PM' : 'AM';
     return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
   };
-  // Only bottom-of-hour (minute = 30), from SLOT_START up to but not including SLOT_END
+  // Only top-of-hour (minute = 0), from SLOT_START up to but not including SLOT_END
   for (let h = CONFIG.SLOT_START; h < CONFIG.SLOT_END; h++) {
-    const endH = h + 1;
-    const endM = 0;
+    const endH = h;
+    const endM = 30;
     slots.push({
-      id:         `${String(h).padStart(2,'0')}30`,
-      startLabel: fmt(h, 30),
+      id:         `${String(h).padStart(2,'0')}00`,
+      startLabel: fmt(h, 0),
       endLabel:   fmt(endH, endM),
-      hour: h, minute: 30,
+      hour: h, minute: 0,
     });
   }
   return slots;
