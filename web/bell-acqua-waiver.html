@@ -1542,6 +1542,67 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params  = new URLSearchParams(window.location.search);
   waiverToken   = params.get('token');
   const viewPdf = params.get('view') === 'pdf';
+  const yscId   = params.get('ysc');
+
+  if (viewPdf && yscId) {
+    // Staff dashboard: download a Youth Ski Club waiver signed in-flow at
+    // checkout. Data comes from the PIN-gated staff_ysc_waiver_pdf RPC
+    // (ysc_registrations itself is not anon-readable).
+    document.getElementById('loadingState').style.display = 'block';
+    const loadingMsg = document.querySelector('#loadingState p');
+    if (loadingMsg) loadingMsg.textContent = 'Generating PDF…';
+    try {
+      const res = await fetch(`${WAIVER_CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_ysc_waiver_pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': WAIVER_CONFIG.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${WAIVER_CONFIG.SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ p_staff_pin: params.get('pin') || '', p_id: yscId }),
+      });
+      const w = res.ok ? await res.json() : null;
+      if (!w || w.error) {
+        WaiverApp.showError('Youth Ski Club waiver not found (or staff PIN missing/incorrect).');
+        return;
+      }
+
+      const pdfBlob = generateWaiverPDF({
+        record: {
+          booking_id:  w.id,
+          guest_name:  w.waiver_signer || w.parent_name || '',
+          guest_email: w.parent_email  || '',
+          signed_at:   w.waiver_signed_at || null,
+        },
+        address: '', city: '', stateVal: '', postalCode: '',
+        phone:            w.parent_phone || '',
+        photoConsent:     w.photo_consent ? 'consent' : 'no-consent',
+        isMinorOnly:      true,
+        minorNames:       [w.skier_name].filter(Boolean),
+        smsTransact:      false,
+        smsMarketing:     false,
+        referral:         'Youth Ski Club — Fall 2026',
+        signatureDataUrl: w.waiver_signature || '',
+        booking:          null,
+        waiverRef:        w.id,
+      });
+
+      const url      = URL.createObjectURL(pdfBlob);
+      const a        = document.createElement('a');
+      const safeName = (w.skier_name || w.waiver_signer || 'waiver').replace(/\s+/g, '_');
+      a.href         = url;
+      a.download     = `${w.id}_${safeName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      document.getElementById('loadingState').style.display  = 'none';
+      document.getElementById('thankYouState').style.display = 'block';
+      document.getElementById('thankYouBody').innerHTML      =
+        `✅ Youth Ski Club waiver PDF for <strong>${w.skier_name || 'skier'}</strong> downloaded successfully.`;
+    } catch (err) {
+      console.error('YSC waiver PDF error:', err);
+      WaiverApp.showError('Could not generate the Youth Ski Club waiver PDF. Please try again.');
+    }
+    return;
+  }
 
   if (viewPdf && waiverToken) {
     // Staff clicked the PDF link — regenerate and auto-download the signed waiver

@@ -305,6 +305,7 @@
   <button class="tab-btn" onclick="Dashboard.setTab('members')">🏅 Members</button>
   <button class="tab-btn" onclick="Dashboard.setTab('coupons')">🎟️ Coupons</button>
   <button class="tab-btn" onclick="Dashboard.setTab('referrals')">🎁 Referrals</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('waivers')">📝 Waivers</button>
 </div>
 
 <!-- Dashboard -->
@@ -462,6 +463,24 @@
     </div>
   </div>
 
+  <!-- ─── Waivers Tab ─── -->
+  <div class="tab-content" id="tab-waivers">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Waiver Archive</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input id="waiverSearch" type="text" placeholder="🔍 Search name or email…"
+                 oninput="Dashboard.setWaiverSearch(this.value)"
+                 style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:'Inter',sans-serif;min-width:230px;">
+          <div style="font-size:.8rem;color:var(--gray);">Waivers are valid 1 year from signing.</div>
+        </div>
+      </div>
+      <div class="customers-table-wrap" id="waiversGrid">
+        <div class="loading-row"><div class="loading-spinner"></div> Loading waivers…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── Members Tab ─── -->
   <div class="tab-content" id="tab-members">
     <div class="coupons-wrap" style="max-width: 1000px; margin: 0 auto;">
@@ -574,8 +593,12 @@ const DS = {
   blockedSlots:   {},  // dateKey → Set<slotId>  (individual slot blocks)
   blockedRanges:  {},  // dateKey → [ full rows {id,start_min,end_min,calendars,reason} ]
   affiliateDefaults: null, // { friend_discount_pct, reward_pct } from app_settings
-  pageSize:       { customers:20, coupons:20, referrals:20 },
-  page:           { customers:1,  coupons:1,  referrals:1  },
+  pageSize:       { customers:20, coupons:20, referrals:20, waivers:20 },
+  page:           { customers:1,  coupons:1,  referrals:1,  waivers:1  },
+  yscWaivers:     [],
+  yscWaiversError:false,
+  memberships:    [],
+  waiverSearch:   '',
   coupons:        [],
   affiliates:     [],
   affReferrals:   [],
@@ -655,7 +678,7 @@ function waiverBadge(s){
 async function fetchAll(){
   const [bRes,wRes,blRes,bsRes,cpRes,mbRes,afRes,arRes,brRes,asRes] = await Promise.all([
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/bookings?select=id,first_name,last_name,email,phone,party_size,total_amount,status,slots,booking_type,created_at&order=created_at.desc`,{headers:sbH()}),
-    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?select=id,booking_id,guest_name,guest_email,status,signed_at,waiver_ref&order=guest_index.asc`,{headers:sbH()}),
+    fetch(`${CONFIG.SUPABASE_URL}/rest/v1/waiver_requests?select=id,booking_id,membership_id,token,guest_name,guest_email,status,signed_at,waiver_ref&order=guest_index.asc`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_dates?select=date,reason,blocked_by,created_at`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?select=id,date,slot_id,reason`,{headers:sbH()}),
     fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?select=*&order=created_at.desc`,{headers:sbH()}),
@@ -667,6 +690,19 @@ async function fetchAll(){
   ]);
   let baseBookings = bRes.ok  ? await bRes.json()  : [];
   DS.waivers      = wRes.ok  ? await wRes.json()  : [];
+
+  /* Youth Ski Club waivers (PIN-gated RPC) + memberships, for the Waivers tab */
+  try{
+    const yRes = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_ysc_waivers`,{
+      method:'POST',headers:sbH(),body:JSON.stringify({p_staff_pin:CONFIG.STAFF_PIN})
+    });
+    DS.yscWaivers = yRes.ok ? await yRes.json() : [];
+    DS.yscWaiversError = !yRes.ok;
+  }catch(e){ DS.yscWaivers=[]; DS.yscWaiversError=true; }
+  try{
+    const mRes = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/memberships?select=email,status,plan,membership_start,membership_end`,{headers:sbH()});
+    DS.memberships = mRes.ok ? await mRes.json() : [];
+  }catch(e){ DS.memberships=[]; }
   DS.coupons      = cpRes.ok ? await cpRes.json() : [];
   DS.affiliates   = (afRes && afRes.ok) ? await afRes.json() : [];
   DS.affReferrals = (arRes && arRes.ok) ? await arRes.json() : [];
@@ -1275,9 +1311,123 @@ function renderReferrals(){
 }
 
 /* ──────────────────────────────────────────────────────────────
+   WAIVERS TAB — unified archive: booking + membership waivers
+   (waiver_requests) and Youth Ski Club waivers (PIN-gated RPC).
+   Validity = 1 year from signing.
+   ────────────────────────────────────────────────────────────── */
+const WAIVER_TYPE_LEVEL={bi:'Beginner/Int.',srl:'Ski w/ Lesson'};
+
+function waiverMemberStatus(email){
+  if(!email) return '—';
+  const e=email.toLowerCase();
+  const today=todayKey();
+  const ms=DS.memberships.filter(m=>(m.email||'').toLowerCase()===e);
+  const active=ms.find(m=>m.status==='active'&&(!m.membership_start||m.membership_start<=today)&&(!m.membership_end||m.membership_end>=today));
+  if(active) return `🏅 Member${active.plan?` (${active.plan})`:''}`;
+  if(ms.find(m=>m.status==='pending')) return '⏳ Member (pending)';
+  return '—';
+}
+
+function waiverLastSkied(){
+  const map={};
+  const today=todayKey();
+  DS.bookings.forEach(b=>{
+    if(b.status==='cancelled'||!b.email) return;
+    const e=b.email.toLowerCase();
+    (b.slots||[]).forEach(s=>{
+      if(!s.date||s.date>today) return;
+      if(!map[e]||s.date>map[e]) map[e]=s.date;
+    });
+  });
+  return map;
+}
+
+function waiverValidityBadge(signedAt){
+  if(!signedAt) return `<span class="waiver-badge wb-pending">⏳ Not signed</span>`;
+  const exp=new Date(signedAt); exp.setFullYear(exp.getFullYear()+1);
+  const expStr=exp.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(exp<new Date()) return `<span class="waiver-badge" style="background:#FDE8E8;color:var(--red);">✕ Expired ${expStr}</span>`;
+  return `<span class="waiver-badge wb-signed">✅ Valid until ${expStr}</span>`;
+}
+
+function buildWaiverRows(){
+  const rows=[];
+  DS.waivers.forEach(w=>{
+    const b=w.booking_id?DS.bookings.find(x=>x.id===w.booking_id):null;
+    rows.push({
+      name:w.guest_name||'—', sub:w.guest_email||'', email:w.guest_email||'',
+      type:w.membership_id?'Membership':'Booking',
+      signed_at:w.status==='signed'?w.signed_at:null,
+      level:b?(WAIVER_TYPE_LEVEL[b.booking_type]||b.booking_type||'—'):'—',
+      dl:(w.status==='signed'&&w.token)?`bell-acqua-waiver.html?token=${encodeURIComponent(w.token)}&view=pdf`:null,
+    });
+  });
+  DS.yscWaivers.forEach(w=>{
+    rows.push({
+      name:w.skier_name||'—', sub:`${w.parent_name||''} · ${w.parent_email||''}`, email:w.parent_email||'',
+      type:'Youth Ski Club',
+      signed_at:w.waiver_signed_at,
+      level:w.skier_level?w.skier_level.charAt(0).toUpperCase()+w.skier_level.slice(1):'—',
+      dl:`bell-acqua-waiver.html?ysc=${encodeURIComponent(w.id)}&pin=${encodeURIComponent(CONFIG.STAFF_PIN)}&view=pdf`,
+    });
+  });
+  return rows;
+}
+
+function renderWaivers(){
+  const grid=document.getElementById('waiversGrid');
+  const lastMap=waiverLastSkied();
+  let rows=buildWaiverRows();
+
+  const q=(DS.waiverSearch||'').trim().toLowerCase();
+  if(q) rows=rows.filter(r=>r.name.toLowerCase().includes(q)||r.email.toLowerCase().includes(q)||r.sub.toLowerCase().includes(q));
+
+  rows.sort((a,b)=>(b.signed_at||'').localeCompare(a.signed_at||''));
+
+  const note=DS.yscWaiversError
+    ?`<div style="padding:10px 14px;background:#FFF8EA;border-bottom:1px solid var(--border);font-size:.8rem;color:#8a6d1a;">⚠️ Youth Ski Club waivers unavailable — run migration <code>20260831_waiver_archive.sql</code> in Supabase.</div>`
+    :'';
+
+  if(!rows.length){
+    grid.innerHTML=note+`<div class="empty-state"><div class="empty-state-icon">📝</div><div style="font-weight:600;margin-bottom:4px;">${q?'No waivers match your search':'No waivers yet'}</div><div style="font-size:.82rem;color:var(--gray);">Signed booking, membership and Youth Ski Club waivers all appear here.</div></div>`;
+    return;
+  }
+
+  const pg=paginate(rows,'waivers');
+  const trs=pg.slice.map(r=>{
+    const signedStr=r.signed_at?new Date(r.signed_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    const last=lastMap[r.email.toLowerCase()];
+    const lastStr=last?new Date(last+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    return `<tr>
+      <td><div class="cust-name">${r.name}</div><div style="font-size:.76rem;color:var(--gray);word-break:break-all;">${r.sub}</div></td>
+      <td style="white-space:nowrap;">${r.type}</td>
+      <td style="white-space:nowrap;font-size:.8rem;">${signedStr}</td>
+      <td style="white-space:nowrap;">${waiverValidityBadge(r.signed_at)}</td>
+      <td style="white-space:nowrap;font-size:.8rem;">${waiverMemberStatus(r.email)}</td>
+      <td style="white-space:nowrap;font-size:.8rem;">${r.level}</td>
+      <td style="white-space:nowrap;font-size:.8rem;">${lastStr}</td>
+      <td>${r.dl?`<a class="btn-outline-sm" style="text-decoration:none;" href="${r.dl}" target="_blank">⬇ PDF</a>`:''}</td>
+    </tr>`;
+  }).join('');
+
+  grid.innerHTML=note+`<table class="customers-table">
+    <thead><tr>
+      <th>Person</th><th>Type</th><th>Signed</th><th>Validity</th><th>Member</th><th>Level</th><th>Last skied</th><th></th>
+    </tr></thead>
+    <tbody>${trs}</tbody>
+  </table>${paginationBar('waivers',pg)}`;
+}
+
+/* ──────────────────────────────────────────────────────────────
    DASHBOARD CONTROLLER
    ────────────────────────────────────────────────────────────── */
 const Dashboard = {
+
+  setWaiverSearch(v){
+    DS.waiverSearch=v;
+    DS.page.waivers=1;
+    renderWaivers();
+  },
 
   checkPin(){
     const input=document.getElementById('pinInput');
@@ -1314,6 +1464,7 @@ const Dashboard = {
       if(DS.activeTab==='coupons') renderCoupons();
       if(DS.activeTab==='members') this.loadMembers();
       if(DS.activeTab==='referrals') renderReferrals();
+      if(DS.activeTab==='waivers') renderWaivers();
     }catch(e){console.error('Load error:',e);}
     document.getElementById('refreshIcon').className='';
     btn.classList.remove('refreshing');
@@ -1323,13 +1474,14 @@ const Dashboard = {
 
   setTab(tab){
     DS.activeTab=tab;
-    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals'][i]===tab));
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers'][i]===tab));
     document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if(tab==='customers') renderCustomers();
     if(tab==='coupons')   renderCoupons();
     if(tab==='members')   this.loadMembers();
     if(tab==='referrals') renderReferrals();
+    if(tab==='waivers')   renderWaivers();
   },
 
   selectDate(key){
@@ -1686,6 +1838,7 @@ const Dashboard = {
   _rerenderPaged(key){
     if(key==='customers')renderCustomers();
     else if(key==='coupons')renderCoupons();
+    else if(key==='waivers')renderWaivers();
     else renderReferrals();
   },
 
