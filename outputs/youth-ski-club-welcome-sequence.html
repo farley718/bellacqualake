@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Youth Ski Club — 5-Email Welcome Sequence | Bell Acqua Lake</title>
+<style>
+  body { margin:0; padding:32px 16px; background:#f0f4f8; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#2c3e50; }
+  .page-head { max-width:640px; margin:0 auto 32px; }
+  .page-head h1 { font-size:22px; color:#002b49; margin:0 0 8px; }
+  .page-head p { font-size:14px; color:#5a6b7b; margin:0 0 6px; line-height:1.6; }
+  .meta { max-width:640px; margin:40px auto 0; background:#002b49; color:#ffffff; padding:16px 20px; border-radius:8px 8px 0 0; }
+  .meta .tag { display:inline-block; background:#e5a93b; color:#002b49; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:20px; margin-bottom:10px; }
+  .meta p { margin:4px 0; font-size:13px; line-height:1.5; }
+  .meta strong { color:#8fd0f5; }
+  .container { max-width:640px; margin:0 auto 8px; background:#ffffff; border-radius:0 0 8px 8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .header { background:#ffffff; padding:24px; text-align:center; border-bottom:3px solid #0077b6; }
+  .header img { max-width:200px; height:auto; }
+  .hero { background:#0077b6; color:#ffffff; padding:28px 24px; text-align:center; }
+  .hero h2 { margin:0; font-size:24px; line-height:1.3; }
+  .content { padding:28px 24px; font-size:16px; line-height:1.65; }
+  .content p { margin:0 0 16px; }
+  .content h3 { color:#002b49; font-size:18px; margin:26px 0 12px; }
+  ul { padding-left:20px; margin:0 0 16px; }
+  li { margin-bottom:9px; }
+  .facts { background:#f4f7f9; border-left:4px solid #0077b6; padding:16px 18px; margin:0 0 20px; font-size:15px; }
+  .facts p { margin:4px 0; }
+  .price { color:#0077b6; font-weight:700; }
+  .btn-wrap { text-align:center; margin:26px 0; }
+  .button { display:inline-block; background:#e5a93b; color:#002b49 !important; text-decoration:none; font-weight:700; font-size:17px; padding:15px 34px; border-radius:6px; }
+  .footer { background:#002b49; color:#8898aa; padding:22px 24px; text-align:center; font-size:12px; line-height:1.6; }
+  .footer a { color:#8fd0f5; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Youth Ski Club — Welcome &amp; Enrollment Sequence</h1>
+  <p><strong>Audience:</strong> Parents who submitted the "Reserve our spot" form on the Youth Ski Club landing page but have not yet paid.</p>
+  <p><strong>Goal:</strong> Confirm the reservation, answer parent objections, and close the $2,000 all-inclusive fall season before Sept 15.</p>
+  <p><strong>Exit condition:</strong> Remove the contact from this sequence the moment payment is received or a spot is confirmed by phone.</p>
+  <p><strong>Merge fields</strong> use GoHighLevel syntax. Replace <code>[BOOKING LINK]</code> and <code>[PAYMENT LINK]</code> before publishing.</p>
+</div>
+
+<!-- ============ EMAIL 1 ============ -->
+<div class="meta">
+  <span class="tag">Email 1 · Send immediately</span>
+  <p><strong>Subject:</strong> Your Youth Ski Club spot is being held, {{contact.first_name}}</p>
+  <p><strong>Preview text:</strong> Here's exactly what happens next.</p>
+</div>
+<div class="container">
+  <div class="header"><img src="https://bellacqualake.com/wp-content/uploads/2024/01/cropped-BellAcquaLakeLogo_800px.png" alt="Bell Acqua Lake"></div>
+  <div class="hero"><h2>You're on the list.</h2></div>
+  <div class="content">
+    <p>Hi {{contact.first_name}},</p>
+    <p>Thanks for reserving a spot in the Bell Acqua Lake <strong>Youth Ski Club</strong>. We've received your request and your spot is being held while we confirm scheduling.</p>
+    <div class="facts">
+      <p><strong>Season:</strong> Sept 15 – Oct 31 (full fall season)</p>
+      <p><strong>Sessions:</strong> 4 coached sessions a week — Tue/Thu or Mon/Wed, 4–6:30pm</p>
+      <p><strong>Ages:</strong> 10–17, beginner through competitive</p>
+      <p><strong>Investment:</strong> <span class="price">$2,000</span> all-inclusive</p>
+    </div>
+    <h3>What happens next</h3>
+    <ul>
+      <li>A coach will call you <strong>within one business day</strong> to confirm your days and answer any questions.</li>
+      <li>Once your spot is confirmed, we'll send payment details and a short waiver for your skier.</li>
+      <li>Then you just show up on day one — we handle the rest.</li>
+    </ul>
+    <p>Slots are limited and filled first come, first served, so if you'd rather lock it in now, just reply to this email or call us and we'll finish it in two minutes.</p>
+    <div class="btn-wrap"><a href="[PAYMENT LINK]" class="button">Confirm My Skier's Spot</a></div>
+    <p>See you at the lake,<br><strong>The Bell Acqua Lake Team</strong><br>(916) 919-5726</p>
+  </div>
+  <div class="footer">
+    Bell Acqua Lake · 930 E St, Rio Linda, CA 95673<br>
+    (916) 919-5726 · <a href="https://bellacqualake.com">bellacqualake.com</a>
+  </div>
+</div>
+
+<!-- ============ EMAIL 2 ============ -->
+<div class="meta">
+  <span class="tag">Email 2 · Day 1</span>
+  <p><strong>Subject:</strong> What a Youth Ski Club session actually looks like</p>
+  <p><strong>Preview text:</strong> 4pm to 6:30pm, from the dock to the last set.</p>
+</div>
+<div class="container">
+  <div class="header"><img src="https://bellacqualake.com/wp-content/uploads/2024/01/cropped-BellAcquaLakeLogo_800px.png" alt="Bell Acqua Lake"></div>
+  <div class="hero"><h2>Two and a half hours on the water.</h2></div>
+  <div class="content">
+    <p>Hi {{contact.first_name}},</p>
+    <p>Most parents want to picture the afternoon before they commit. Here's how a Youth Ski Club session runs.</p>
+    <h3>4:00pm — Arrive and gear up</h3>
+    <p>Your skier changes at the dock. Lockers and changing rooms are on site, and every ski, vest, and rope they need is already here — nothing to buy, nothing to haul.</p>
+    <h3>4:15pm — On the boat</h3>
+    <p>Bell Acqua is a private, wind-protected lake built for training, so the water is glass when the public lakes are chop. Skiers run sets in small rotations behind tournament boats with a certified coach calling every pass.</p>
+    <h3>Through 6:30pm — Three events, real progress</h3>
+    <p>Club is <strong>3-event waterskiing</strong>: slalom, trick, and jump. Beginners start with the basics of a solid slalom pass. More advanced skiers work the course, refine trick runs, and build toward the jump. Everyone trains at their own level in the same group.</p>
+    <h3>After the last set</h3>
+    <p>Hot tub, warm showers, WiFi at the dock, and a refrigerator for snacks — so pickup isn't a shivering kid in a wet towel.</p>
+    <p>Four of these a week, for the whole fall season.</p>
+    <div class="btn-wrap"><a href="[BOOKING LINK]" class="button">Reserve Our Spot</a></div>
+    <p><strong>The Bell Acqua Lake Team</strong></p>
+  </div>
+  <div class="footer">
+    Bell Acqua Lake · 930 E St, Rio Linda, CA 95673<br>
+    (916) 919-5726 · <a href="https://bellacqualake.com">bellacqualake.com</a>
+  </div>
+</div>
+
+<!-- ============ EMAIL 3 ============ -->
+<div class="meta">
+  <span class="tag">Email 3 · Day 3</span>
+  <p><strong>Subject:</strong> "But my kid has never skied before"</p>
+  <p><strong>Preview text:</strong> The five questions every parent asks us first.</p>
+</div>
+<div class="container">
+  <div class="header"><img src="https://bellacqualake.com/wp-content/uploads/2024/01/cropped-BellAcquaLakeLogo_800px.png" alt="Bell Acqua Lake"></div>
+  <div class="hero"><h2>Your questions, answered.</h2></div>
+  <div class="content">
+    <p>Hi {{contact.first_name}},</p>
+    <p>These are the five things parents ask us before their skier's first session.</p>
+    <h3>"My kid has never been on skis."</h3>
+    <p>Perfect. Club is built for all skill levels, ages 10–17. Beginners get coached from the first deep-water start — they're not thrown in with the competitive kids and left behind.</p>
+    <h3>"Do we need to buy gear?"</h3>
+    <p>No. Skis, vests, ropes, tournament boats — all included in the season price. No boat to tow, no equipment to outgrow.</p>
+    <h3>"Is it safe?"</h3>
+    <p>Every session is run by certified coaches on a private lake with no public traffic, in tournament boats designed for exactly this. Skiers are never on the water unsupervised.</p>
+    <h3>"What if they can only make some of the sessions?"</h3>
+    <p>Four sessions a week is what's <em>available</em> — not a mandatory attendance quota. Pick the schedule that fits: Tuesday &amp; Thursday, or Monday &amp; Wednesday, 4–6:30pm. Come to what you can.</p>
+    <h3>"What about weekends?"</h3>
+    <p>Weekend lessons are available for an additional fee if your skier wants more time on the water.</p>
+    <p>Anything we didn't cover? Reply to this email or call <strong>(916) 919-5726</strong> — a coach will answer, not a call center.</p>
+    <div class="btn-wrap"><a href="[PAYMENT LINK]" class="button">Confirm My Skier's Spot</a></div>
+    <p><strong>The Bell Acqua Lake Team</strong></p>
+  </div>
+  <div class="footer">
+    Bell Acqua Lake · 930 E St, Rio Linda, CA 95673<br>
+    (916) 919-5726 · <a href="https://bellacqualake.com">bellacqualake.com</a>
+  </div>
+</div>
+
+<!-- ============ EMAIL 4 ============ -->
+<div class="meta">
+  <span class="tag">Email 4 · Day 5</span>
+  <p><strong>Subject:</strong> What $2,000 actually buys, {{contact.first_name}}</p>
+  <p><strong>Preview text:</strong> Seven weeks. Four sessions a week. Everything included.</p>
+</div>
+<div class="container">
+  <div class="header"><img src="https://bellacqualake.com/wp-content/uploads/2024/01/cropped-BellAcquaLakeLogo_800px.png" alt="Bell Acqua Lake"></div>
+  <div class="hero"><h2>One price. Nothing else to buy.</h2></div>
+  <div class="content">
+    <p>Hi {{contact.first_name}},</p>
+    <p>Let's put the number in context.</p>
+    <p><strong>$2,000 covers the full fall season</strong> — Sept 15 through Oct 31. Four coached sessions a week, up to 2.5 hours each. That's up to 28 coached sessions across the season.</p>
+    <div class="facts">
+      <p>✓ Certified coaches on every session</p>
+      <p>✓ Tournament boats and fuel</p>
+      <p>✓ All skis, vests, and ropes</p>
+      <p>✓ Private, wind-protected training lake</p>
+      <p>✓ Lockers, changing rooms, refrigerator</p>
+      <p>✓ Hot tub, warm showers, dock WiFi</p>
+      <p><strong>No hidden fees.</strong> Weekend lessons are the only optional add-on.</p>
+    </div>
+    <p>Compare that to a season of private lessons paid one at a time, plus gear, plus a boat you'd have to own and tow. This is the version where you drop your skier off at 4pm and pick up a better athlete at 6:30.</p>
+    <p>And the part that isn't on the invoice: seven weeks in a small group of kids who all want the same thing, coached by people who compete themselves.</p>
+    <div class="btn-wrap"><a href="[PAYMENT LINK]" class="button">Lock In Our Spot — $2,000</a></div>
+    <p><strong>The Bell Acqua Lake Team</strong></p>
+  </div>
+  <div class="footer">
+    Bell Acqua Lake · 930 E St, Rio Linda, CA 95673<br>
+    (916) 919-5726 · <a href="https://bellacqualake.com">bellacqualake.com</a>
+  </div>
+</div>
+
+<!-- ============ EMAIL 5 ============ -->
+<div class="meta">
+  <span class="tag">Email 5 · Day 7 (or 48 hrs before Sept 15)</span>
+  <p><strong>Subject:</strong> Last call before the season opens Sept 15</p>
+  <p><strong>Preview text:</strong> We can only hold your skier's spot so long.</p>
+</div>
+<div class="container">
+  <div class="header"><img src="https://bellacqualake.com/wp-content/uploads/2024/01/cropped-BellAcquaLakeLogo_800px.png" alt="Bell Acqua Lake"></div>
+  <div class="hero"><h2>The season opens Sept 15.</h2></div>
+  <div class="content">
+    <p>Hi {{contact.first_name}},</p>
+    <p>Quick and honest one: you reserved a spot in Youth Ski Club, and we've been holding it. Slots are limited and go first come, first served — once the club fills, we close it for the season.</p>
+    <p>All that's left is choosing your days:</p>
+    <ul>
+      <li><strong>Tuesday &amp; Thursday</strong>, 4–6:30pm</li>
+      <li><strong>Monday &amp; Wednesday</strong>, 4–6:30pm</li>
+    </ul>
+    <p>Reply with the days you want, or call <strong>(916) 919-5726</strong> and we'll have your skier on the water opening week.</p>
+    <div class="btn-wrap"><a href="[PAYMENT LINK]" class="button">Claim Our Spot for Fall</a></div>
+    <p>If the timing doesn't work this season, just reply and let us know — we'll take you off these reminders and keep you posted on the next one.</p>
+    <p>See you at the lake,<br><strong>The Bell Acqua Lake Team</strong></p>
+  </div>
+  <div class="footer">
+    Bell Acqua Lake · 930 E St, Rio Linda, CA 95673<br>
+    (916) 919-5726 · <a href="https://bellacqualake.com">bellacqualake.com</a>
+  </div>
+</div>
+
+</body>
+</html>

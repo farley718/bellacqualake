@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — Bell Acqua Youth Ski Club Fall 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  :root{
+    --ink-teal:#0B4C7C;--ink-teal-2:#073B63;--deep-water:#052A47;
+    --foam:#F5FAFE;--lagoon-dark:#0089C2;--gold:#F0A500;--gold-dark:#C9690A;
+    --accent:#1E9142;--accent-dark:#166B31;--ink:#171A1C;--alarm:#D93B1E;
+    --line:rgba(11,76,124,.16);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--foam);color:var(--ink);font-family:'Work Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{margin:0;}
+  a{color:var(--lagoon-dark);}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
+
+  .topbar{background:var(--deep-water);color:var(--foam);text-align:center;padding:12px 16px;font-size:13px;font-weight:600;letter-spacing:.04em;}
+  .shell{max-width:1080px;margin:0 auto;padding:28px 20px 60px;}
+  .masthead{text-align:center;margin-bottom:26px;}
+  .masthead h1{font-family:'Anton',sans-serif;color:var(--ink-teal);font-size:clamp(24px,3.6vw,34px);line-height:1.1;}
+  .masthead p{margin-top:10px;color:#3B5570;font-size:15.5px;}
+  .flag{display:inline-block;margin-top:14px;background:rgba(217,59,30,.1);color:var(--alarm);font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:8px 16px;border-radius:999px;}
+
+  .layout{display:grid;grid-template-columns:1.35fr .65fr;gap:24px;align-items:start;}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr;} .summary{order:-1;} }
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px 24px;box-shadow:0 6px 22px rgba(11,76,124,.06);}
+
+  /* steps */
+  .steps{display:flex;gap:8px;margin-bottom:22px;}
+  .step{flex:1;text-align:center;font-size:12px;font-weight:700;color:#8496A8;padding-bottom:10px;border-bottom:3px solid var(--line);letter-spacing:.04em;}
+  .step.active{color:var(--ink-teal);border-bottom-color:var(--gold);}
+  .step.done{color:var(--accent);border-bottom-color:var(--accent);}
+  .step b{display:block;font-size:16px;font-family:'Anton',sans-serif;margin-bottom:4px;}
+
+  .pane{display:none;}
+  .pane.on{display:block;}
+  .pane h2{font-family:'Anton',sans-serif;color:var(--ink-teal);font-size:21px;margin-bottom:4px;}
+  .pane .hint{font-size:13.5px;color:#63758A;margin-bottom:18px;}
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:560px){ .row{grid-template-columns:1fr;} }
+  .field{margin-bottom:14px;}
+  .field.full{grid-column:1 / -1;}
+  label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-teal);margin-bottom:6px;}
+  label .opt{font-weight:500;color:#8496A8;}
+  input,select,textarea{
+    width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:10px;
+    font-family:inherit;font-size:15px;background:#fff;color:var(--ink);
+  }
+  textarea{min-height:76px;resize:vertical;}
+  input:focus,select:focus,textarea:focus{border-color:var(--lagoon-dark);outline:none;}
+  input.bad,select.bad{border-color:var(--alarm);background:#FFF7F5;}
+
+  /* cohort picker */
+  .cohorts{display:grid;gap:12px;}
+  .cohort{
+    border:2px solid var(--line);border-radius:12px;padding:16px 18px;cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;gap:14px;transition:border-color .15s,background .15s;
+  }
+  .cohort:hover{border-color:var(--lagoon-dark);}
+  .cohort.sel{border-color:var(--gold);background:#FFFBF2;}
+  .cohort.full{opacity:.55;cursor:not-allowed;border-style:dashed;}
+  .cohort b{display:block;font-size:16px;color:var(--ink-teal);}
+  .cohort span{display:block;font-size:13px;color:#63758A;margin-top:3px;}
+  .seats{font-size:12.5px;font-weight:800;white-space:nowrap;color:var(--accent-dark);}
+  .seats.low{color:var(--alarm);}
+  .seats.none{color:#8496A8;}
+
+  /* summary */
+  .summary{background:linear-gradient(180deg,var(--ink-teal-2),var(--deep-water));color:var(--foam);border-radius:16px;padding:26px 22px;position:sticky;top:20px;}
+  .summary h3{font-family:'Anton',sans-serif;font-size:18px;margin-bottom:16px;}
+  .line{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:9px 0;border-bottom:1px solid rgba(245,250,254,.14);}
+  .line span:last-child{font-weight:700;white-space:nowrap;}
+  .line .inc{color:#6FE39B;font-size:12px;letter-spacing:.06em;}
+  .total{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px;padding-top:14px;border-top:2px solid rgba(245,250,254,.24);}
+  .total span{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,250,254,.7);}
+  .total b{font-family:'Anton',sans-serif;font-size:30px;color:#FFD37A;}
+  .incl{margin-top:18px;font-size:13px;line-height:1.7;color:rgba(245,250,254,.85);}
+  .incl b{display:block;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:#FFD37A;margin-bottom:6px;}
+
+  /* buttons */
+  .actions{display:flex;gap:10px;margin-top:22px;}
+  .btn{
+    flex:1;padding:15px 20px;border-radius:11px;border:none;cursor:pointer;
+    font-family:inherit;font-weight:800;font-size:15.5px;transition:background .15s,transform .15s;
+  }
+  .btn-primary{background:var(--gold);color:#1B1200;}
+  .btn-primary:hover{background:#FFB61A;transform:translateY(-1px);}
+  .btn-back{flex:0 0 auto;background:#EDF3F8;color:var(--ink-teal);}
+  .btn-pay{background:var(--accent);color:#fff;}
+  .btn-pay:hover{background:var(--accent-dark);}
+  .btn[disabled]{opacity:.65;cursor:progress;transform:none;}
+
+  #card-element{padding:13px;border:1.5px solid var(--line);border-radius:10px;background:#fff;}
+  .err{color:var(--alarm);font-size:13.5px;font-weight:600;margin-top:12px;min-height:18px;}
+  .secure{text-align:center;font-size:12.5px;color:#63758A;margin-top:14px;}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* done */
+  #done{display:none;text-align:center;padding:44px 24px;}
+  #done .tick{width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+  #done h2{font-family:'Anton',sans-serif;color:var(--ink-teal);font-size:28px;}
+  #done p{margin:14px auto 0;max-width:52ch;color:#3B5570;font-size:15.5px;line-height:1.6;}
+  #done .ref{display:inline-block;margin-top:18px;background:var(--foam);border:1px dashed var(--line);border-radius:10px;padding:12px 20px;font-weight:800;color:var(--ink-teal);}
+  #done .waiver{display:inline-block;margin-top:22px;background:var(--ink-teal);color:#fff;font-weight:700;padding:15px 30px;border-radius:999px;text-decoration:none;}
+
+  footer{text-align:center;font-size:13px;color:#63758A;padding:26px 20px 40px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">&#128274; 256-Bit SSL Encrypted Checkout</div>
+
+<div class="shell">
+  <div class="masthead">
+    <h1>Youth Ski Club &mdash; Fall 2026 Registration</h1>
+    <p>7 weeks of structured coaching, boats, drivers &amp; glassy water &middot; Sept 15 &ndash; Oct 31</p>
+    <span class="flag" id="urgency">Limited slots remaining</span>
+  </div>
+
+  <div class="layout" id="layout">
+    <div class="card">
+      <div class="steps">
+        <div class="step active" id="s1"><b>1</b>Parent &amp; Skier</div>
+        <div class="step" id="s2"><b>2</b>Cohort</div>
+        <div class="step" id="s3"><b>3</b>Secure Checkout</div>
+      </div>
+
+      <!-- STEP 1 -->
+      <div class="pane on" id="p1">
+        <h2>Parent &amp; skier details</h2>
+        <p class="hint">We'll use this to reach you about scheduling and to keep your skier safe on the water.</p>
+        <div class="row">
+          <div class="field"><label for="pFirst">Parent / guardian first name</label><input id="pFirst" autocomplete="given-name"></div>
+          <div class="field"><label for="pLast">Parent / guardian last name</label><input id="pLast" autocomplete="family-name"></div>
+          <div class="field"><label for="pEmail">Email address</label><input id="pEmail" type="email" autocomplete="email"></div>
+          <div class="field"><label for="pPhone">Phone number</label><input id="pPhone" type="tel" autocomplete="tel"></div>
+          <div class="field"><label for="sName">Skier's full name</label><input id="sName"></div>
+          <div class="field"><label for="sAge">Skier's age</label>
+            <select id="sAge">
+              <option value="">Select age</option>
+              <option>10</option><option>11</option><option>12</option><option>13</option>
+              <option>14</option><option>15</option><option>16</option><option>17</option>
+            </select>
+          </div>
+          <div class="field"><label for="sLevel">Current skill level</label>
+            <select id="sLevel">
+              <option value="">Select level</option>
+              <option value="beginner">Beginner — never skied or still learning to get up</option>
+              <option value="intermediate">Intermediate — comfortable on two skis / slalom</option>
+              <option value="advanced">Advanced — runs the course</option>
+              <option value="competitive">Competitive — tournament experience</option>
+            </select>
+          </div>
+          <div class="field"><label for="eName">Emergency contact name</label><input id="eName"></div>
+          <div class="field"><label for="ePhone">Emergency contact phone</label><input id="ePhone" type="tel"></div>
+          <div class="field full"><label for="med">Allergies or medical notes our coaches should know <span class="opt">(optional)</span></label><textarea id="med" placeholder="e.g. bee sting allergy, asthma inhaler in gear bag"></textarea></div>
+        </div>
+        <div class="err" id="e1"></div>
+        <div class="actions"><button class="btn btn-primary" id="to2">Continue to cohort selection</button></div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="pane" id="p2">
+        <h2>Choose your cohort</h2>
+        <p class="hint">Four coached sets a week, 4:00&ndash;6:30 PM. Pick the pair of days that works for your family.</p>
+        <div class="cohorts">
+          <div class="cohort" data-cohort="tue_thu">
+            <div><b>Tuesday &amp; Thursday</b><span>4:00 PM &ndash; 6:30 PM &middot; Sept 15 &ndash; Oct 31</span></div>
+            <div class="seats" data-seats="tue_thu">&nbsp;</div>
+          </div>
+          <div class="cohort" data-cohort="mon_wed">
+            <div><b>Monday &amp; Wednesday</b><span>4:00 PM &ndash; 6:30 PM &middot; Sept 15 &ndash; Oct 31</span></div>
+            <div class="seats" data-seats="mon_wed">&nbsp;</div>
+          </div>
+        </div>
+        <div class="err" id="e2"></div>
+        <div class="actions">
+          <button class="btn btn-back" id="back1">Back</button>
+          <button class="btn btn-primary" id="to3">Continue to checkout</button>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="pane" id="p3">
+        <h2>Secure checkout</h2>
+        <p class="hint" id="payFor">Paying today: $2,000.00 — full Fall 2026 season.</p>
+        <div class="field"><label for="cardName">Name on card</label><input id="cardName" autocomplete="cc-name"></div>
+        <div class="field"><label>Card details</label><div id="card-element"></div></div>
+        <div class="err" id="e3"></div>
+        <div class="actions">
+          <button class="btn btn-back" id="back2">Back</button>
+          <button class="btn btn-pay" id="payBtn">&#128274; Pay $2,000.00</button>
+        </div>
+        <p class="secure">Your card is processed by Stripe. Bell Acqua Lake never sees or stores your card number.</p>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <aside class="summary">
+      <h3>Program Summary</h3>
+      <div class="line"><span>Youth Ski Club Tuition (7 wks)</span><span>$2,000.00</span></div>
+      <div class="line"><span>Equipment &amp; boat fees</span><span class="inc">INCLUDED</span></div>
+      <div class="line"><span>Hot tub &amp; locker access</span><span class="inc">INCLUDED</span></div>
+      <div class="total"><span>Total due</span><b>$2,000.00</b></div>
+      <div class="incl">
+        <b>What's included</b>
+        &#10003; 7 weeks of coaching (4 sets/wk)<br>
+        &#10003; Tournament boat &amp; certified driver<br>
+        &#10003; All waterski gear &amp; vests<br>
+        &#10003; Private glassy water access<br>
+        &#10003; Hot tub &amp; parent dock WiFi
+      </div>
+    </aside>
+  </div>
+
+  <!-- DONE -->
+  <div class="card" id="done">
+    <div class="tick">&#10003;</div>
+    <h2>Your skier's spot is confirmed</h2>
+    <p id="doneMsg">We've emailed your receipt and Welcome Guide. One last thing before September 15: every youth skier needs a signed safety waiver on file.</p>
+    <div class="ref" id="doneRef"></div><br>
+    <a class="waiver" href="https://bellacqualake.com/waiver" id="waiverLink">Sign the Safety Waiver &rarr;</a>
+  </div>
+
+  <footer>
+    Bell Acqua Lake &mdash; Sacramento's Premier Private Waterskiing Facility<br>
+    Rio Linda, California &middot; Questions? Call <a href="tel:9169915341">(916) 991-5341</a>
+  </footer>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   CONFIG — same Supabase project and Stripe key as the
+   membership checkout. The GHL webhook is the Youth Ski Club
+   inbound trigger already wired to the landing-page form.
+   ══════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  SUPABASE_URL:            'https://euznpkrkkaieykznztho.supabase.co',
+  SUPABASE_ANON_KEY:       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1em5wa3Jra2FpZXlrem56dGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDgxNTAsImV4cCI6MjA5MTMyNDE1MH0.Krku7-ccJvENFPZpwxfQlJL8FANlFAyiwF31mJEeUE0',
+  STRIPE_PUBLISHABLE_KEY:  'pk_live_51OhcOzIm7mkqF5Db7OYGvDeC9fitsQ8T4hTEW4iHcnki7lGTpWO7BJE8qeXu7g5KbjvWA1OuQc9HVAhwEWJuzD7H00clb21G4v',
+  CHECKOUT_ENDPOINT:       'https://euznpkrkkaieykznztho.supabase.co/functions/v1/membership-checkout',
+  PAYMENT_INTENT_ENDPOINT: 'https://euznpkrkkaieykznztho.supabase.co/functions/v1/create-payment-intent',
+  GHL_YSC_WEBHOOK_URL:     'https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/5567acbc-46db-423e-b9bc-aa1ce705cd5d',
+  WAIVER_URL:              'https://bellacqualake.com/waiver',
+  SEASON:                  'fall-2026',
+  PRICE:                   2000,
+};
+
+const COHORT_LABEL = { tue_thu:'Tuesday & Thursday, 4:00–6:30 PM', mon_wed:'Monday & Wednesday, 4:00–6:30 PM' };
+
+const S = { step:1, cohort:null, seats:{}, stripe:null, card:null, mounted:false, processing:false, regId:null, customerId:null };
+
+const $  = id => document.getElementById(id);
+const sbH = extra => Object.assign({
+  'Content-Type':'application/json',
+  'apikey':CONFIG.SUPABASE_ANON_KEY,
+  'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+}, extra || {});
+const money = n => '$' + n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ── seat counts: real numbers, straight from the database ── */
+async function loadSeats(){
+  try{
+    const r = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/ysc_seats_remaining`,{
+      method:'POST', headers:sbH(), body:JSON.stringify({ p_season: CONFIG.SEASON })
+    });
+    if(!r.ok) throw new Error('seats');
+    (await r.json()).forEach(row => { S.seats[row.cohort] = row.remaining; });
+  }catch(e){
+    console.warn('Seat counts unavailable:', e);
+    S.seats = {};                       /* unknown — say nothing rather than guess */
+  }
+  renderSeats();
+}
+
+function renderSeats(){
+  let known = false, total = 0;
+  document.querySelectorAll('[data-seats]').forEach(el=>{
+    const c = el.getAttribute('data-seats');
+    const n = S.seats[c];
+    const card = document.querySelector(`.cohort[data-cohort="${c}"]`);
+    if(n === undefined){ el.textContent=''; return; }
+    known = true; total += n;
+    if(n <= 0){ el.textContent='FULL'; el.className='seats none'; card.classList.add('full'); card.classList.remove('sel'); if(S.cohort===c) S.cohort=null; }
+    else { el.textContent = n + (n===1?' spot left':' spots left'); el.className = 'seats' + (n<=4?' low':''); }
+  });
+  const u = $('urgency');
+  if(known) u.textContent = total>0 ? `${total} spot${total===1?'':'s'} left this fall` : 'Both cohorts are full';
+  else u.textContent = 'Limited slots remaining';
+}
+
+/* ── step navigation ── */
+function goto(n){
+  S.step = n;
+  [1,2,3].forEach(i=>{
+    $('p'+i).classList.toggle('on', i===n);
+    const s = $('s'+i);
+    s.className = 'step' + (i===n ? ' active' : i<n ? ' done' : '');
+  });
+  window.scrollTo({ top:0, behavior:'smooth' });
+  if(n===3) mountCard();
+}
+
+function val(id){ return $(id).value.trim(); }
+function flag(id, bad){ $(id).classList.toggle('bad', !!bad); return !bad; }
+
+function validateStep1(){
+  const email = val('pEmail'), phone = val('pPhone');
+  let ok = true;
+  ok = flag('pFirst', !val('pFirst')) && ok;
+  ok = flag('pLast',  !val('pLast'))  && ok;
+  ok = flag('pEmail', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) && ok;
+  ok = flag('pPhone', phone.replace(/\D/g,'').length < 10) && ok;
+  ok = flag('sName',  !val('sName'))  && ok;
+  ok = flag('sAge',   !val('sAge'))   && ok;
+  ok = flag('sLevel', !val('sLevel')) && ok;
+  ok = flag('eName',  !val('eName'))  && ok;
+  ok = flag('ePhone', val('ePhone').replace(/\D/g,'').length < 10) && ok;
+  $('e1').textContent = ok ? '' : 'Please complete the highlighted fields — we need these to keep your skier safe on the water.';
+  return ok;
+}
+
+/* ── Stripe card element ── */
+function mountCard(){
+  if(S.mounted) return;
+  try{
+    S.stripe = Stripe(CONFIG.STRIPE_PUBLISHABLE_KEY);
+    const el = S.stripe.elements();
+    S.card = el.create('card',{style:{base:{fontSize:'15px',fontFamily:"'Work Sans', sans-serif",color:'#171A1C'}}});
+    S.card.mount('#card-element');
+    S.card.on('change', e => { $('e3').textContent = e.error ? e.error.message : ''; });
+    S.mounted = true;
+  }catch(e){
+    console.warn('Stripe mount error:', e);
+    $('e3').textContent = 'Card form could not load. Please refresh, or call (916) 991-5341 to register by phone.';
+  }
+  if(!val('cardName')) $('cardName').value = `${val('pFirst')} ${val('pLast')}`.trim();
+}
+
+/* ── payment ── */
+async function pay(){
+  if(S.processing) return;
+  const btn = $('payBtn'), err = $('e3');
+  err.textContent = '';
+  if(!val('cardName')){ err.textContent='Please enter the name on your card.'; return; }
+  if(!S.card){ err.textContent='Card details not loaded — please refresh and try again.'; return; }
+
+  /* Re-check the seat is still there before charging anyone. */
+  await loadSeats();
+  if(S.seats[S.cohort] !== undefined && S.seats[S.cohort] <= 0){
+    err.textContent = 'That cohort just filled. Please choose the other one — you have not been charged.';
+    goto(2); return;
+  }
+
+  S.processing = true;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>&nbsp;Processing payment…';
+  S.regId = 'YSC-' + Math.random().toString(36).slice(2,10).toUpperCase();
+
+  try{
+    const body = {
+      amount: CONFIG.PRICE * 100,
+      currency: 'usd',
+      email: val('pEmail'),
+      name: `${val('pFirst')} ${val('pLast')}`,
+      metadata: {
+        type:'youth_ski_club', season:CONFIG.SEASON, registrationId:S.regId,
+        cohort:S.cohort, skierName:val('sName'), skierAge:val('sAge')
+      }
+    };
+    let res = await fetch(CONFIG.CHECKOUT_ENDPOINT,{method:'POST',headers:sbH(),body:JSON.stringify(body)}).catch(()=>null);
+    if(!res || !res.ok){
+      res = await fetch(CONFIG.PAYMENT_INTENT_ENDPOINT,{method:'POST',headers:sbH(),body:JSON.stringify(body)});
+    }
+    if(!res.ok) throw new Error('Could not start the payment. Please try again.');
+    const data = await res.json();
+    if(!data.clientSecret) throw new Error('Could not start the payment. Please try again.');
+    S.customerId = data.customerId || null;
+
+    const result = await S.stripe.confirmCardPayment(data.clientSecret,{
+      payment_method:{ card:S.card, billing_details:{ name:val('cardName'), email:val('pEmail') } }
+    });
+    if(result.error) throw new Error(result.error.message || 'Your card was declined.');
+
+    btn.innerHTML = '<span class="spinner"></span>&nbsp;Confirming your spot…';
+    await recordRegistration(result.paymentIntent?.id || '');
+    showDone();
+  }catch(e){
+    err.textContent = e.message || 'Something went wrong. Please try again — you have not been charged twice.';
+    btn.disabled = false;
+    btn.innerHTML = '&#128274; Pay ' + money(CONFIG.PRICE);
+    S.processing = false;
+  }
+}
+
+/* The payment already succeeded by this point. Never throw from here —
+   a failed row write must not tell a paying parent their card failed. */
+async function recordRegistration(piId){
+  const row = {
+    id:S.regId, season:CONFIG.SEASON,
+    parent_first:val('pFirst'), parent_last:val('pLast'),
+    parent_email:val('pEmail'), parent_phone:val('pPhone'),
+    skier_name:val('sName'), skier_age:parseInt(val('sAge'),10), skier_level:val('sLevel'),
+    cohort:S.cohort,
+    emergency_contact:val('eName'), emergency_phone:val('ePhone'),
+    medical_notes:val('med') || null,
+    amount_paid:CONFIG.PRICE, stripe_pi:piId, stripe_customer:S.customerId,
+    status:'paid'
+  };
+  try{
+    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/ysc_registrations`,{
+      method:'POST', headers:sbH({'Prefer':'return=minimal'}), body:JSON.stringify(row)
+    });
+  }catch(e){ console.error('Registration row failed (payment DID succeed):', e, row); }
+
+  /* Hand off to GoHighLevel for the receipt, welcome guide and tagging. */
+  try{
+    const payload = {
+      first_name:val('pFirst'), last_name:val('pLast'),
+      name:`${val('pFirst')} ${val('pLast')}`,
+      email:val('pEmail'), phone:val('pPhone'),
+      parent_name:`${val('pFirst')} ${val('pLast')}`,
+      skier_name:val('sName'), skier_age:val('sAge'), skier_level:val('sLevel'),
+      preferred_schedule:COHORT_LABEL[S.cohort] || S.cohort,
+      registration_id:S.regId, registration_status:'paid',
+      amount_paid:CONFIG.PRICE, stripe_payment_intent:piId,
+      waiver_url:CONFIG.WAIVER_URL, waiver_signed:false,
+      program:'Youth Ski Club — Fall 2026', season:'Sept 15 – Oct 31, 2026',
+      price:'$2,000', source:'Youth Ski Club Checkout',
+      page_url:window.location.href, submitted_at:new Date().toISOString()
+    };
+    fetch(CONFIG.GHL_YSC_WEBHOOK_URL,{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    }).catch(()=>fetch(CONFIG.GHL_YSC_WEBHOOK_URL,{
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=UTF-8'}, body:JSON.stringify(payload)
+    }).catch(()=>{}));
+  }catch(e){ console.error('GHL handoff failed:', e); }
+}
+
+function showDone(){
+  $('layout').style.display = 'none';
+  $('done').style.display = 'block';
+  $('doneRef').textContent = 'Registration ' + S.regId + ' · ' + (COHORT_LABEL[S.cohort] || '');
+  $('waiverLink').href = CONFIG.WAIVER_URL;
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* ── wiring ── */
+document.querySelectorAll('.cohort').forEach(c=>{
+  c.addEventListener('click', ()=>{
+    if(c.classList.contains('full')) return;
+    document.querySelectorAll('.cohort').forEach(x=>x.classList.remove('sel'));
+    c.classList.add('sel');
+    S.cohort = c.getAttribute('data-cohort');
+    $('e2').textContent = '';
+  });
+});
+
+$('to2').addEventListener('click', ()=>{ if(validateStep1()) goto(2); });
+$('back1').addEventListener('click', ()=> goto(1));
+$('to3').addEventListener('click', ()=>{
+  if(!S.cohort){ $('e2').textContent = 'Please choose a cohort to continue.'; return; }
+  $('payFor').textContent = `Paying today: ${money(CONFIG.PRICE)} — full Fall 2026 season, ${COHORT_LABEL[S.cohort]}.`;
+  goto(3);
+});
+$('back2').addEventListener('click', ()=> goto(2));
+$('payBtn').addEventListener('click', pay);
+$('payBtn').innerHTML = '&#128274; Pay ' + money(CONFIG.PRICE);
+
+loadSeats();
+</script>
+</body>
+</html>

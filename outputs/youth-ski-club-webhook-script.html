@@ -1,0 +1,86 @@
+<!-- =========================================================
+     Youth Ski Club form → GoHighLevel inbound webhook
+     Replace the ENTIRE existing <script>...</script> block at the
+     bottom of the Youth Ski Club page with this one.
+     Webhook: LC inbound trigger (Bell Acqua, location rqN9GeQaEfpisadTVaUO)
+     ========================================================= -->
+<script>
+(function () {
+  var GHL_WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/5567acbc-46db-423e-b9bc-aa1ce705cd5d";
+
+  var form    = document.getElementById('ysc-form');
+  var success = document.getElementById('form-success');
+  if (!form) return;
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var btn = form.querySelector('.book-submit');
+    var originalLabel = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+    var parentName = (form['parent-name'].value || '').trim();
+    var parts      = parentName.split(/\s+/);
+    var firstName  = parts.shift() || '';
+    var lastName   = parts.join(' ');
+
+    var payload = {
+      // Standard GHL contact fields
+      first_name: firstName,
+      last_name: lastName,
+      name: parentName,
+      email: (form['email'].value || '').trim(),
+      phone: (form['phone'].value || '').trim(),
+
+      // Youth Ski Club custom fields
+      parent_name: parentName,
+      skier_name: (form['skier-name'].value || '').trim(),
+      skier_age: form['skier-age'].value || '',
+      preferred_schedule: form['schedule'].value || '',
+
+      // Program / attribution context
+      program: 'Youth Ski Club — Fall 2026',
+      season: 'Sept 15 – Oct 31, 2026',
+      price: '$2,000',
+      source: 'Youth Ski Club Landing Page',
+      page_url: window.location.href,
+      submitted_at: new Date().toISOString()
+    };
+
+    function showSuccess() {
+      form.style.display = 'none';
+      if (success) success.style.display = 'block';
+      if (success && success.scrollIntoView) {
+        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function showError() {
+      if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+      alert("Sorry — we couldn't submit that. Please try again, or call us at (916) 919-5726.");
+    }
+
+    fetch(GHL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        showSuccess();
+      })
+      .catch(function () {
+        // Fallback: no-cors fire-and-forget (avoids any CORS preflight issue).
+        // GHL still parses the JSON body; we just can't read the response.
+        fetch(GHL_WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify(payload)
+        })
+          .then(showSuccess)
+          .catch(showError);
+      });
+  });
+})();
+</script>

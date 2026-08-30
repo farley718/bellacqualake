@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Youth Ski Club — Bell Acqua Lake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Baloo+2:wght@500;700;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-teal:#0B4C7C;
+    --ink-teal-2:#073B63;
+    --deep-water:#052A47;
+    --foam:#F5FAFE;
+    --foam-dim:#E6F2FA;
+    --rust:#F7931D;
+    --rust-dark:#C9690A;
+    --lagoon:#00AEEF;
+    --lagoon-dark:#0089C2;
+    --gold:#FFF200;
+    --gold-dark:#E6D400;
+    --leaf:#0072BC;
+    --accent:#1E9142;
+    --accent-dark:#166B31;
+    --ink:#171A1C;
+    --shadow-soft: 0 18px 40px rgba(5,42,71,0.18);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--foam);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{margin:0;}
+  .display{
+    font-family:'Anton', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.01em;
+  }
+  .script{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800;
+  }
+  a{color:inherit;}
+  img{max-width:100%;display:block;}
+  .wrap{
+    max-width:1440px;
+    margin:0 auto;
+    padding:0 48px;
+  }
+  .eyebrow{
+    font-family:'Work Sans',sans-serif;
+    font-weight:700;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    font-size:12.5px;
+  }
+  /* ---------- Skip to content / focus ---------- */
+  a.skip-link{
+    position:absolute; left:-999px; top:auto;
+    background:var(--gold); color:var(--ink-teal); padding:10px 16px;
+    border-radius:8px; z-index:999; font-weight:700;
+  }
+  a.skip-link:focus{ left:16px; top:16px; }
+  :focus-visible{
+    outline:3px solid var(--gold);
+    outline-offset:3px;
+  }
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    background:rgba(5,42,71,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .topbar-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 48px;
+    max-width:1440px; margin:0 auto;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    color:var(--foam);
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800; font-size:18px;
+  }
+  .brand-mark{
+    height:64px;width:auto;
+    object-fit:contain;
+    flex:none;
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,0.35));
+  }
+  .topbar-cta{
+    background:var(--gold);
+    color:var(--ink-teal);
+    font-weight:700;
+    padding:10px 18px;
+    border-radius:999px;
+    font-size:14px;
+    text-decoration:none;
+    white-space:nowrap;
+    transition:transform .18s ease, background .18s ease;
+    border:none;
+    cursor:pointer;
+  }
+  .topbar-cta:hover{ background:var(--gold-dark); transform:translateY(-1px); }
+  @media (max-width:520px){
+    .topbar-inner{ padding:8px 20px; }
+    .brand-mark{ height:44px; }
+    .brand{ font-size:15px; gap:8px; }
+    .topbar-cta{ padding:9px 14px; font-size:13px; }
+  }
+  /* ---------- Hero ---------- */
+  .hero{
+    position:relative;
+    background:
+      radial-gradient(ellipse 120% 70% at 15% -10%, rgba(0,174,239,0.32), transparent 55%),
+      linear-gradient(180deg, var(--deep-water) 0%, var(--ink-teal) 55%, var(--ink-teal-2) 100%);
+    overflow:hidden;
+    padding:76px 0 0;
+  }
+  .hero-inner{
+    display:grid;
+    grid-template-columns:1.15fr 0.85fr;
+    gap:40px;
+    align-items:center;
+    padding-bottom:40px;
+  }
+  .hero-badge{
+    display:inline-block;
+    background:var(--foam);
+    color:var(--rust-dark);
+    font-family:'Work Sans',sans-serif;
+    font-weight:700;
+    font-size:14.5px;
+    padding:9px 18px;
+    border-radius:999px;
+    box-shadow:var(--shadow-soft);
+    margin-bottom:22px;
+  }
+  .hero h1{
+    color:var(--foam);
+    font-size:clamp(34px, 5.2vw, 58px);
+    line-height:1.03;
+  }
+  .hero h1 .rust{ color:#FFA733; }
+  .hero-tagline{
+    margin-top:20px;
+    color:var(--lagoon);
+    font-size:clamp(22px,3vw,32px);
+    line-height:1.15;
+    text-shadow:0 2px 0 rgba(0,0,0,0.15);
+  }
+  .hero-sub{
+    margin-top:20px;
+    color:rgba(245,250,254,0.82);
+    font-size:17px;
+    max-width:46ch;
+    line-height:1.55;
+  }
+  .hero-ctas{
+    margin-top:30px;
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .btn-primary{
+    background:var(--gold);
+    color:var(--ink-teal);
+    font-weight:700;
+    padding:15px 26px;
+    border-radius:999px;
+    text-decoration:none;
+    font-size:15.5px;
+    box-shadow:0 10px 24px rgba(247,147,29,0.35);
+    transition:transform .18s ease, box-shadow .18s ease;
+    border:none;
+    cursor:pointer;
+  }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 14px 30px rgba(247,147,29,0.45); }
+  .btn-ghost{
+    background:transparent;
+    border:1.5px solid rgba(245,250,254,0.4);
+    color:var(--foam);
+    font-weight:600;
+    padding:14px 24px;
+    border-radius:999px;
+    text-decoration:none;
+    font-size:15.5px;
+    transition:border-color .18s ease, background .18s ease;
+  }
+  .btn-ghost:hover{ border-color:var(--foam); background:rgba(245,250,254,0.06); }
+  .hero-stats{
+    margin-top:34px;
+    display:flex;
+    gap:26px;
+    flex-wrap:wrap;
+  }
+  .hero-stat b{
+    display:block;
+    font-family:'Anton',sans-serif;
+    font-size:26px;
+    color:var(--foam);
+  }
+  .hero-stat span{
+    font-size:12.5px;
+    color:rgba(245,250,254,0.65);
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+  }
+  /* Hero photo */
+  .hero-photo-stage{
+    position:relative;
+    border-radius:20px;
+    overflow:hidden;
+    box-shadow:0 24px 54px rgba(0,0,0,0.35);
+    border:1px solid rgba(245,250,254,0.14);
+    aspect-ratio:4/5;
+    opacity:0;
+    transform:translateY(14px);
+    animation:photo-in 0.8s ease-out forwards 0.25s;
+  }
+  .hero-photo{
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  @keyframes photo-in{ to{ opacity:1; transform:translateY(0); } }
+  @media (prefers-reduced-motion: reduce){
+    .hero-photo-stage{ opacity:1; transform:none; animation:none; }
+  }
+  .hero-wave{
+    display:block;
+    width:100%;
+    height:60px;
+    margin-top:10px;
+  }
+  @media (max-width:880px){
+    .hero-inner{ grid-template-columns:1fr; }
+    .hero-photo-stage{ aspect-ratio:16/10; order:-1; }
+  }
+  /* ---------- Included section ---------- */
+  .included{
+    background:var(--foam);
+    padding:20px 0 76px;
+  }
+  .section-head{
+    max-width:640px;
+    margin:0 0 40px;
+  }
+  .section-head .eyebrow{ color:var(--rust-dark); }
+  .section-head h2{
+    font-size:clamp(28px,4vw,40px);
+    margin-top:10px;
+    color:var(--ink-teal);
+  }
+  .section-head p{
+    margin-top:14px;
+    font-size:16px;
+    color:#3B5570;
+    line-height:1.6;
+  }
+  .checklist{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:16px;
+  }
+  @media (max-width:980px){ .checklist{ grid-template-columns:repeat(2, 1fr); } }
+  .check-item{
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    background:#fff;
+    border:1px solid rgba(11,76,124,0.08);
+    border-radius:14px;
+    padding:18px 18px;
+    box-shadow:0 4px 16px rgba(11,76,124,0.05);
+  }
+  .check-mark{
+    flex:none;
+    width:26px;height:26px;
+    border-radius:50%;
+    background:var(--leaf);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;
+    font-weight:700;
+  }
+  .check-item p{
+    margin:0;
+    font-size:15.5px;
+    font-weight:600;
+    color:var(--ink);
+    line-height:1.4;
+  }
+  @media (max-width:700px){ .checklist{ grid-template-columns:1fr; } }
+  /* ---------- Program stat strip ---------- */
+  .stat-strip{
+    background:var(--ink-teal);
+    padding:36px 0;
+  }
+  .stat-strip .wrap{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:20px;
+  }
+  .stat-cell{
+    text-align:center;
+    color:var(--foam);
+    padding:8px 6px;
+    border-left:1px solid rgba(245,250,254,0.14);
+  }
+  .stat-cell:first-child{ border-left:none; }
+  .stat-cell b{
+    display:block;
+    font-family:'Anton',sans-serif;
+    font-size:28px;
+    color:var(--lagoon);
+    margin-bottom:4px;
+  }
+  .stat-cell span{
+    font-size:12.5px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:rgba(245,250,254,0.7);
+  }
+  @media (max-width:700px){
+    .stat-strip .wrap{ grid-template-columns:repeat(2,1fr); row-gap:26px; }
+    .stat-cell:nth-child(3){ border-left:none; }
+  }
+  /* ---------- Pricing / booking ---------- */
+  .book{
+    background:linear-gradient(180deg, var(--ink-teal-2), var(--deep-water));
+    padding:84px 0;
+    position:relative;
+  }
+  .book-card{
+    max-width:920px;
+    margin:0 auto;
+    background:var(--foam);
+    border-radius:22px;
+    padding:44px 40px;
+    box-shadow:0 30px 60px rgba(0,0,0,0.35);
+    text-align:center;
+  }
+  .book-card .eyebrow{ color:var(--rust-dark); }
+  .book-card h2{
+    margin-top:10px;
+    font-size:clamp(26px,4vw,36px);
+    color:var(--ink-teal);
+  }
+  .price-row{
+    margin-top:22px;
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:8px;
+  }
+  .price-row .amount{
+    font-family:'Anton',sans-serif;
+    font-size:52px;
+    color:var(--accent);
+  }
+  .price-row .period{
+    font-size:15px;
+    color:#5A6E82;
+    font-weight:600;
+  }
+  .book-card .fine{
+    margin-top:6px;
+    font-size:14px;
+    color:#5A6E82;
+  }
+  .book-card .urgency{
+    display:inline-block;
+    margin-top:22px;
+    background:rgba(30,145,66,0.12);
+    color:var(--accent-dark);
+    font-weight:700;
+    font-size:13.5px;
+    padding:8px 16px;
+    border-radius:999px;
+    letter-spacing:0.02em;
+  }
+  .book-form{
+    margin-top:30px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    text-align:left;
+  }
+  .book-form label{
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink-teal);
+    display:block;
+    margin-bottom:6px;
+  }
+  .book-form input, .book-form select{
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    border:1.5px solid rgba(11,76,124,0.18);
+    font-family:'Work Sans',sans-serif;
+    font-size:14.5px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .book-form input:focus, .book-form select:focus{
+    border-color:var(--lagoon-dark);
+  }
+  .field-full{ grid-column:1 / -1; }
+  .book-submit{
+    grid-column:1 / -1;
+    margin-top:6px;
+    background:var(--accent);
+    color:#fff;
+    font-weight:700;
+    font-size:16px;
+    padding:16px;
+    border-radius:12px;
+    border:none;
+    cursor:pointer;
+    transition:background .18s ease, transform .18s ease;
+  }
+  .book-submit:hover{ background:var(--accent-dark); transform:translateY(-1px); }
+  .book-submit[disabled]{ opacity:0.7; cursor:progress; transform:none; }
+  .form-note{
+    grid-column:1 / -1;
+    font-size:12.5px;
+    color:#63758A;
+    text-align:center;
+    margin-top:2px;
+  }
+  .form-error{
+    grid-column:1 / -1;
+    display:none;
+    background:rgba(201,105,10,0.12);
+    color:var(--rust-dark);
+    font-weight:600;
+    font-size:13.5px;
+    padding:12px 14px;
+    border-radius:10px;
+    text-align:center;
+  }
+  #form-success{
+    display:none;
+    margin-top:22px;
+    background:rgba(91,140,67,0.12);
+    color:#3C5B2C;
+    font-weight:600;
+    padding:16px;
+    border-radius:12px;
+  }
+  @media (max-width:560px){
+    .book-form{ grid-template-columns:1fr; }
+    .book-card{ padding:32px 22px; }
+  }
+  /* ---------- Footer ---------- */
+  footer{
+    background:var(--deep-water);
+    color:rgba(245,250,254,0.7);
+    padding:44px 0 30px;
+  }
+  .footer-inner{
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:24px;
+    align-items:center;
+  }
+  .footer-brand{
+    color:var(--foam);
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:17px;
+  }
+  footer .contact{ font-size:14px; line-height:1.8; }
+  footer a{ text-decoration:none; }
+  footer a:hover{ color:var(--lagoon); }
+  .footer-bottom{
+    margin-top:30px;
+    padding-top:20px;
+    border-top:1px solid rgba(245,250,254,0.1);
+    font-size:12.5px;
+    text-align:center;
+    color:rgba(245,250,254,0.45);
+  }
+</style>
+</head>
+<body>
+<a href="#book" class="skip-link">Skip to booking</a>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <img class="brand-mark" src="LOGO_DATA_URI_PLACEHOLDER" alt="Bell Acqua Lake logo">
+      Bell Acqua Lake
+    </div>
+    <a href="#book" class="topbar-cta">Book Your Dates</a>
+  </div>
+</div>
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div>
+      <span class="hero-badge">Sept 15 – Oct 31 · Rio Linda, CA</span>
+      <h1 class="display">Are your kids looking for <span class="rust">something to do</span> this fall?</h1>
+      <div class="hero-tagline script">Join the Youth Ski Club — 3&#8209;event waterskiing.</div>
+      <p class="hero-sub">Four coached sessions a week on a private, tournament-grade lake — choose Tuesday &amp; Thursday or Monday &amp; Wednesday, 4&ndash;6:30pm. Real coaches, real boats, real progress — for skiers ages 10&ndash;17, beginner through competitive.</p>
+      <div class="hero-ctas">
+        <a href="#book" class="btn-primary">Reserve a spot</a>
+        <a href="#included" class="btn-ghost">See what's included</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><b>4×</b><span>Coaching sessions/wk</span></div>
+        <div class="hero-stat"><b>10&ndash;17</b><span>Age range</span></div>
+        <div class="hero-stat"><b>7 wks</b><span>Full fall season</span></div>
+      </div>
+    </div>
+    <div class="hero-photo-stage">
+      <img class="hero-photo" src="https://assets.cdn.filesafe.space/rqN9GeQaEfpisadTVaUO/media/65cc1b3ae0653a0b73134a36.jpeg" alt="Youth skier training on Bell Acqua Lake">
+    </div>
+  </div>
+  <svg class="hero-wave" viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,32 C150,60 350,0 600,28 C850,56 1050,4 1200,30 L1200,60 L0,60 Z" fill="#F5FAFE"></path>
+  </svg>
+</header>
+<section class="included" id="included">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">What's included</span>
+      <h2>Everything they need is already at the lake.</h2>
+      <p>No gear to buy, no boat to tow. Just show up ready to ski — Bell Acqua handles the rest on a private, wind-protected lake built for training.</p>
+    </div>
+    <div class="checklist">
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>Learn 3&#8209;event competitive waterskiing — slalom, trick, and jump</p>
+      </div>
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>4 coaching sessions a week — Tue/Thu or Mon/Wed, 4&ndash;6:30pm</p>
+      </div>
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>Certified coaches, tournament boats, and gear — all included</p>
+      </div>
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>Hot tub, warm showers, and WiFi at the dock</p>
+      </div>
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>Private lockers, changing rooms, and a refrigerator for snacks</p>
+      </div>
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>All skill levels welcome, ages 10&ndash;17</p>
+      </div>
+      <div class="check-item">
+        <div class="check-mark">✓</div>
+        <p>Weekend lessons also available for an additional fee</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="stat-strip">
+  <div class="wrap">
+    <div class="stat-cell"><b>Sept 15</b><span>Season opens</span></div>
+    <div class="stat-cell"><b>Oct 31</b><span>Season closes</span></div>
+    <div class="stat-cell"><b>$2,000</b><span>All&#8209;inclusive</span></div>
+    <div class="stat-cell"><b>Rio Linda</b><span>Sacramento County, CA</span></div>
+  </div>
+</section>
+<section class="book" id="book">
+  <div class="wrap">
+    <div class="book-card">
+      <span class="eyebrow">Fall season · Sept 15 – Oct 31</span>
+      <h2 class="display" style="text-transform:none; font-family:'Anton',sans-serif;">Book your dates now</h2>
+      <div class="price-row">
+        <span class="amount">$2,000</span>
+        <span class="period">/ full fall season, all&#8209;inclusive</span>
+      </div>
+      <p class="fine">Coaching, boats, gear, and dock amenities included. No hidden fees. Weekend lessons available separately for an additional fee.</p>
+      <span class="urgency">Slots are limited — first come, first served</span>
+      <form class="book-form" id="ysc-form" novalidate>
+        <div>
+          <label for="parent-name">Parent / guardian name</label>
+          <input type="text" id="parent-name" name="parent-name" required autocomplete="name">
+        </div>
+        <div>
+          <label for="skier-name">Skier's name</label>
+          <input type="text" id="skier-name" name="skier-name" required autocomplete="off">
+        </div>
+        <div>
+          <label for="skier-age">Skier's age</label>
+          <select id="skier-age" name="skier-age" required>
+            <option value="" disabled selected>Select age</option>
+            <option>10</option><option>11</option><option>12</option><option>13</option>
+            <option>14</option><option>15</option><option>16</option><option>17</option>
+          </select>
+        </div>
+        <div>
+          <label for="phone">Phone number</label>
+          <input type="tel" id="phone" name="phone" required autocomplete="tel">
+        </div>
+        <div class="field-full">
+          <label for="schedule">Preferred schedule</label>
+          <select id="schedule" name="schedule" required>
+            <option value="" disabled selected>Select days</option>
+            <option>Tuesday &amp; Thursday, 4&ndash;6:30pm</option>
+            <option>Monday &amp; Wednesday, 4&ndash;6:30pm</option>
+          </select>
+        </div>
+        <div class="field-full">
+          <label for="email">Email address</label>
+          <input type="email" id="email" name="email" required autocomplete="email">
+        </div>
+        <p class="form-error" id="form-error"></p>
+        <button type="submit" class="book-submit">Reserve our spot</button>
+        <p class="form-note">We'll follow up within one business day to confirm scheduling and payment.</p>
+      </form>
+      <div id="form-success">You're on the list! We'll reach out shortly to confirm your skier's spot for fall season.</div>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">Bell Acqua Lake</div>
+        <div class="contact" style="margin-top:8px;">
+          930 E St, Rio Linda, CA 95673<br>
+          <a href="tel:19169915726">(916) 919-5726</a> &nbsp;·&nbsp;
+          <a href="https://bellacqualake.com">bellacqualake.com</a>
+        </div>
+      </div>
+      <a href="#book" class="btn-primary">Book Your Dates</a>
+    </div>
+    <div class="footer-bottom">Youth Ski Club is a Bell Acqua Lake program for ages 10&ndash;17, all skill levels welcome.</div>
+  </div>
+</footer>
+<script>
+(function () {
+  /* GoHighLevel inbound webhook — Youth Ski Club form */
+  var GHL_WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/5567acbc-46db-423e-b9bc-aa1ce705cd5d";
+
+  var form    = document.getElementById('ysc-form');
+  var success = document.getElementById('form-success');
+  var errBox  = document.getElementById('form-error');
+  var btn     = form.querySelector('.book-submit');
+  var btnText = btn.textContent;
+
+  function showError(msg) {
+    errBox.textContent = msg;
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = btnText;
+  }
+
+  function showSuccess() {
+    form.style.display = 'none';
+    success.style.display = 'block';
+    if (success.scrollIntoView) success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errBox.style.display = 'none';
+
+    if (!form.checkValidity()) {
+      showError('Please fill in every field before submitting.');
+      form.reportValidity();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    var parentName = form['parent-name'].value.trim();
+    var parts      = parentName.split(/\s+/);
+    var firstName  = parts.shift() || '';
+    var lastName   = parts.join(' ');
+
+    var payload = {
+      /* Standard GHL contact fields */
+      first_name: firstName,
+      last_name: lastName,
+      name: parentName,
+      email: form['email'].value.trim(),
+      phone: form['phone'].value.trim(),
+
+      /* Youth Ski Club custom fields */
+      parent_name: parentName,
+      skier_name: form['skier-name'].value.trim(),
+      skier_age: form['skier-age'].value,
+      preferred_schedule: form['schedule'].value,
+
+      /* Program / attribution context */
+      program: 'Youth Ski Club — Fall 2026',
+      season: 'Sept 15 – Oct 31, 2026',
+      price: '$2,000',
+      source: 'Youth Ski Club Landing Page',
+      page_url: window.location.href,
+      submitted_at: new Date().toISOString()
+    };
+
+    fetch(GHL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        showSuccess();
+      })
+      .catch(function () {
+        /* Fallback: no-cors fire-and-forget so a CORS/preflight block
+           still delivers the lead. GHL parses the JSON body regardless;
+           we just can't read the response. */
+        fetch(GHL_WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify(payload)
+        })
+          .then(showSuccess)
+          .catch(function () {
+            showError("Sorry — we couldn't submit that. Please try again, or call us at (916) 919-5726.");
+          });
+      });
+  });
+})();
+</script>
+</body>
+</html>
