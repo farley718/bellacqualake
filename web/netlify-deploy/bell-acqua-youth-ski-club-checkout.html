@@ -255,6 +255,11 @@ const CONFIG = {
   PRICE:                   2000,
 };
 
+/* ?test=1 walks the whole flow with NO Stripe charge: the registration row
+   is saved as status 'pending' / $0 with a YSC-TEST- id (never counts against
+   seats), and the GHL webhook fires with registration_status 'test'. */
+const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
+
 const COHORT_LABEL = { tue_thu:'Tuesday & Thursday, 4:00–6:30 PM', mon_wed:'Monday & Wednesday, 4:00–6:30 PM' };
 
 const S = { step:1, cohort:null, seats:{}, stripe:null, card:null, mounted:false, processing:false, regId:null, customerId:null };
@@ -351,8 +356,8 @@ async function pay(){
   if(S.processing) return;
   const btn = $('payBtn'), err = $('e3');
   err.textContent = '';
-  if(!val('cardName')){ err.textContent='Please enter the name on your card.'; return; }
-  if(!S.card){ err.textContent='Card details not loaded — please refresh and try again.'; return; }
+  if(!TEST_MODE && !val('cardName')){ err.textContent='Please enter the name on your card.'; return; }
+  if(!TEST_MODE && !S.card){ err.textContent='Card details not loaded — please refresh and try again.'; return; }
 
   /* Re-check the seat is still there before charging anyone. */
   await loadSeats();
@@ -364,9 +369,15 @@ async function pay(){
   S.processing = true;
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>&nbsp;Processing payment…';
-  S.regId = 'YSC-' + Math.random().toString(36).slice(2,10).toUpperCase();
+  S.regId = 'YSC-' + (TEST_MODE ? 'TEST-' : '') + Math.random().toString(36).slice(2,10).toUpperCase();
 
   try{
+    if(TEST_MODE){
+      btn.innerHTML = '<span class="spinner"></span>&nbsp;Test mode — no charge…';
+      await recordRegistration('TEST-MODE');
+      showDone();
+      return;
+    }
     const body = {
       amount: CONFIG.PRICE * 100,
       currency: 'usd',
@@ -413,8 +424,8 @@ async function recordRegistration(piId){
     cohort:S.cohort,
     emergency_contact:val('eName'), emergency_phone:val('ePhone'),
     medical_notes:val('med') || null,
-    amount_paid:CONFIG.PRICE, stripe_pi:piId, stripe_customer:S.customerId,
-    status:'paid'
+    amount_paid:TEST_MODE ? 0 : CONFIG.PRICE, stripe_pi:piId, stripe_customer:S.customerId,
+    status:TEST_MODE ? 'pending' : 'paid'
   };
   try{
     await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/ysc_registrations`,{
@@ -431,8 +442,8 @@ async function recordRegistration(piId){
       parent_name:`${val('pFirst')} ${val('pLast')}`,
       skier_name:val('sName'), skier_age:val('sAge'), skier_level:val('sLevel'),
       preferred_schedule:COHORT_LABEL[S.cohort] || S.cohort,
-      registration_id:S.regId, registration_status:'paid',
-      amount_paid:CONFIG.PRICE, stripe_payment_intent:piId,
+      registration_id:S.regId, registration_status:TEST_MODE ? 'test' : 'paid',
+      amount_paid:TEST_MODE ? 0 : CONFIG.PRICE, stripe_payment_intent:piId,
       waiver_url:CONFIG.WAIVER_URL, waiver_signed:false,
       program:'Youth Ski Club — Fall 2026', season:'Sept 15 – Oct 31, 2026',
       price:'$2,000', source:'Youth Ski Club Checkout',
@@ -476,6 +487,15 @@ $('to3').addEventListener('click', ()=>{
 $('back2').addEventListener('click', ()=> goto(2));
 $('payBtn').addEventListener('click', pay);
 $('payBtn').innerHTML = '&#128274; Pay ' + money(CONFIG.PRICE);
+
+/* ── test mode UI ── */
+if(TEST_MODE){
+  const tb = document.querySelector('.topbar');
+  if(tb){ tb.innerHTML = '&#9888;&#65039; TEST MODE — no card needed, no charge will be made'; tb.style.background = '#B45309'; }
+  $('payBtn').innerHTML = 'Run test registration (no charge)';
+  $('cardName').closest('.field').style.display = 'none';
+  $('card-element').closest('.field').style.display = 'none';
+}
 
 loadSeats();
 </script>
