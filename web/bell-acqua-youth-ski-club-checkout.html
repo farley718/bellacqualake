@@ -331,8 +331,16 @@ const CONFIG = {
 
 /* ?test=1 walks the whole flow with NO Stripe charge: the registration row
    is saved as status 'pending' / $0 with a YSC-TEST- id (never counts against
-   seats), and the GHL webhook fires with registration_status 'test'. */
-const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
+   seats), and the GHL webhook fires with registration_status 'test'.
+   ?test=paid additionally simulates a REAL sale: row saved as status 'paid'
+   (consumes a seat until deleted) and the webhook fires with
+   registration_status 'paid' — for testing the paid GHL branch end-to-end.
+   Note: anon can already INSERT rows via the REST API by design, so this
+   adds no attack surface; TEST rows are identifiable by the YSC-TEST- id
+   and stripe_pi 'TEST-MODE'. */
+const TEST_PARAM = new URLSearchParams(location.search).get('test');
+const TEST_MODE  = TEST_PARAM === '1' || TEST_PARAM === 'paid';
+const TEST_PAID  = TEST_PARAM === 'paid';
 
 const COHORT_LABEL = { tue_thu:'Tuesday & Thursday, 4:00–6:30 PM', mon_wed:'Monday & Wednesday, 4:00–6:30 PM' };
 
@@ -543,8 +551,8 @@ async function recordRegistration(piId){
     cohort:S.cohort,
     emergency_contact:val('eName'), emergency_phone:val('ePhone'),
     medical_notes:val('med') || null,
-    amount_paid:TEST_MODE ? 0 : CONFIG.PRICE, stripe_pi:piId, stripe_customer:S.customerId,
-    status:TEST_MODE ? 'pending' : 'paid',
+    amount_paid:(TEST_MODE && !TEST_PAID) ? 0 : CONFIG.PRICE, stripe_pi:piId, stripe_customer:S.customerId,
+    status:(TEST_MODE && !TEST_PAID) ? 'pending' : 'paid',
     waiver_signed:true, waiver_signed_at:new Date().toISOString(),
     waiver_signer:val('wSigner'), waiver_signature:S.sigData,
     photo_consent:document.querySelector('input[name="photoConsent"]:checked')?.value === 'yes'
@@ -573,8 +581,8 @@ async function recordRegistration(piId){
       parent_name:`${val('pFirst')} ${val('pLast')}`,
       skier_name:val('sName'), skier_age:val('sAge'), skier_level:val('sLevel'),
       preferred_schedule:COHORT_LABEL[S.cohort] || S.cohort,
-      registration_id:S.regId, registration_status:TEST_MODE ? 'test' : 'paid',
-      amount_paid:TEST_MODE ? 0 : CONFIG.PRICE, stripe_payment_intent:piId,
+      registration_id:S.regId, registration_status:(TEST_MODE && !TEST_PAID) ? 'test' : 'paid',
+      amount_paid:(TEST_MODE && !TEST_PAID) ? 0 : CONFIG.PRICE, stripe_payment_intent:piId,
       waiver_signed:true, waiver_signed_at:new Date().toISOString(),
       waiver_signer:val('wSigner'),
       photo_consent:document.querySelector('input[name="photoConsent"]:checked')?.value === 'yes',
@@ -633,8 +641,11 @@ $('payBtn').innerHTML = '&#128274; Pay ' + money(CONFIG.PRICE);
 /* ── test mode UI ── */
 if(TEST_MODE){
   const tb = document.querySelector('.topbar');
-  if(tb){ tb.innerHTML = '&#9888;&#65039; TEST MODE — no card needed, no charge will be made'; tb.style.background = '#B45309'; }
-  $('payBtn').innerHTML = 'Run test registration (no charge)';
+  if(tb){ tb.innerHTML = TEST_PAID
+      ? '&#9888;&#65039; TEST MODE — simulating a PAID registration (no card, no charge, but counts as a sale until deleted)'
+      : '&#9888;&#65039; TEST MODE — no card needed, no charge will be made';
+    tb.style.background = '#B45309'; }
+  $('payBtn').innerHTML = TEST_PAID ? 'Simulate paid registration (no charge)' : 'Run test registration (no charge)';
   $('cardName').closest('.field').style.display = 'none';
   $('card-element').closest('.field').style.display = 'none';
 }
