@@ -75,6 +75,8 @@
 
   /* summary */
   .summary{background:linear-gradient(180deg,var(--ink-teal-2),var(--deep-water));color:var(--foam);border-radius:16px;padding:26px 22px;position:sticky;top:20px;}
+  /* single-column: sticky would float the summary over the form while scrolling */
+  @media (max-width:900px){ .summary{position:static;} }
   .summary h3{font-family:'Anton',sans-serif;font-size:18px;margin-bottom:16px;}
   .line{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:9px 0;border-bottom:1px solid rgba(245,250,254,.14);}
   .line span:last-child{font-weight:700;white-space:nowrap;}
@@ -112,6 +114,17 @@
   #done .ref{display:inline-block;margin-top:18px;background:var(--foam);border:1px dashed var(--line);border-radius:10px;padding:12px 20px;font-weight:800;color:var(--ink-teal);}
   #done .waiver{display:inline-block;margin-top:22px;background:var(--ink-teal);color:#fff;font-weight:700;padding:15px 30px;border-radius:999px;text-decoration:none;}
 
+  /* waiver step */
+  .waiver-box{max-height:300px;overflow-y:auto;border:1.5px solid var(--line);border-radius:10px;background:#fff;padding:16px 18px;font-size:13.5px;line-height:1.55;color:#3B5570;}
+  .waiver-box p{margin:0 0 10px;}
+  .waiver-box h4{margin:16px 0 6px;color:var(--ink-teal);font-size:13.5px;}
+  .chkrow{display:flex;gap:9px;align-items:flex-start;margin-top:11px;font-size:14px;color:#28415C;cursor:pointer;}
+  .chkrow input, .photorow input{width:16px;height:16px;padding:0;border:none;flex:none;accent-color:var(--ink-teal);}
+  .chkrow input{margin-top:3px;}
+  .photorow{margin-top:14px;background:var(--foam);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px;color:#3B5570;}
+  .photorow label{display:inline-flex;gap:6px;align-items:center;margin:8px 16px 0 0;font-weight:600;cursor:pointer;}
+  .sig-canvas{border:1.5px dashed #9DB2C6;border-radius:10px;background:#fff;width:100%;height:140px;touch-action:none;cursor:crosshair;display:block;}
+
   footer{text-align:center;font-size:13px;color:#63758A;padding:26px 20px 40px;}
 </style>
 </head>
@@ -131,7 +144,8 @@
       <div class="steps">
         <div class="step active" id="s1"><b>1</b>Parent &amp; Skier</div>
         <div class="step" id="s2"><b>2</b>Cohort</div>
-        <div class="step" id="s3"><b>3</b>Secure Checkout</div>
+        <div class="step" id="s3"><b>3</b>Safety Waiver</div>
+        <div class="step" id="s4"><b>4</b>Secure Checkout</div>
       </div>
 
       <!-- STEP 1 -->
@@ -185,19 +199,81 @@
         <div class="err" id="e2"></div>
         <div class="actions">
           <button class="btn btn-back" id="back1">Back</button>
-          <button class="btn btn-primary" id="to3">Continue to checkout</button>
+          <button class="btn btn-primary" id="to3">Continue to safety waiver</button>
         </div>
       </div>
 
-      <!-- STEP 3 -->
+      <!-- STEP 3 — SAFETY WAIVER -->
       <div class="pane" id="p3">
+        <h2>Waiver &amp; release of liability</h2>
+        <p class="hint">Every youth skier needs a signed waiver on file before their spot is confirmed. As the parent / legal guardian, you sign on behalf of your skier.</p>
+
+        <div class="waiver-box">
+          <p>Bell Acqua, Inc. ("Bell Acqua") owns the property at 935 E Street, Rio Linda CA ("Property"). Bell Acqua and its Shareholders ("Shareholders") require any participants and guests on the property to agree to certain conditions and acknowledge the risks associated with water-skiing and other activities, which may be carried out on the property. Please read the following and if you agree, sign below. If you do not agree to the following and do not sign this waiver of liability, you will not be permitted to water-ski on the property or participate in any associated activities on the property.</p>
+          <p>As a participant of water-sports or any other activity on the property, I acknowledge and fully understand that I will be engaging in activities that involve risk of serious injury, including permanent disability and death, and associated social and economic losses, which might result not only from my own actions or negligence but also the actions or negligence of others, or the conditions of the premises or any equipment used.</p>
+          <p>I agree to inspect the facilities and equipment to be used and if I believe anything is unsafe, I will immediately advise a shareholder of Bell Acqua and refuse to participate.</p>
+          <p>I assume all risk and accept personal responsibility for the damages following an injury, permanent disability, or death.</p>
+          <p>I release Bell Acqua, its shareholders, guests and/or employees of any liability for any and all claims, demands, losses or damages on the account of injury, including death or damage to property, caused or alleged to be caused in whole or in part by the negligence of Bell Acqua, its shareholders, guests and/or employees. I acknowledge that the rules of the property have been explained to me and that I understand them.</p>
+          <p>I acknowledge that, when wake-boarding, swimming, water ski jumping, water-skiing, knee-boarding, bare-footing or being towed behind any boat, I must stay at least 25 feet from the shore at all times. When I am traveling around the islands, I will always follow the boat's path and never travel outside the boat's wake. I the skier must stay in the center of the boat wake while boat is turning around the islands. I must know the established set of signals to indicate a change in direction, a change in speed, or that a skier is not hurt after a fall.</p>
+          <p>By my signature below, I acknowledge that water-skiing is an inherently dangerous sport; that I am responsible for my safety; I will obey the rules and regulations posted and verbally communicated to me by shareholders of Bell Acqua; any injury I may suffer while participating in any activity on the property owned by Bell Acqua, is solely my responsibility.</p>
+
+          <h4>Section A — Express Assumption of All Inherent Risks of Water Sports Activities</h4>
+          <p>I, the undersigned, am aware that water-skiing, wake-boarding, and all other water sports activities involve inherent risks of injury or death. I voluntarily and expressly assume all risks associated with participation in water sports activities at Bell Acqua Lake, including but not limited to: drowning, collision with other participants or watercraft, falls and related injuries, equipment failure, variations in water and weather conditions, and any other risk whether foreseen or unforeseen.</p>
+          <p>I understand that Bell Acqua Lake, its shareholders, employees, and agents are not responsible for any injury, loss, or damage incurred as a result of my participation, including injury caused by the negligence of Bell Acqua Lake or any other party.</p>
+
+          <h4>Section B — Indemnity Agreement Statement</h4>
+          <p>I agree to defend, indemnify, and hold harmless Bell Acqua, Inc., its shareholders, officers, employees, agents, and assigns from and against any and all claims, actions, damages, liability, and expense in connection with loss of life, personal injury, or damage to property arising from or out of any occurrence in, upon, or at the property, or the occupancy or use by me of the property or any part thereof. This indemnification shall include the payment of reasonable attorney's fees and costs incurred by Bell Acqua in defending such claims.</p>
+
+          <h4>Section C — Waiver and Release of Liability</h4>
+          <p>In consideration for being permitted to participate in activities at Bell Acqua Lake, I hereby release, waive, discharge, and covenant not to sue Bell Acqua, Inc., its shareholders, directors, officers, employees, volunteers, agents, and assigns (collectively "Releasees") from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to any loss, damage, or injury, including death, that may be sustained by me or to any property belonging to me, while participating in any activity at the property, or while in, on, or upon the premises, WHETHER CAUSED BY THE NEGLIGENCE OF THE RELEASEES, or otherwise.</p>
+          <p>This waiver and release shall be construed broadly to provide a release and waiver to the maximum extent permissible under applicable law.</p>
+
+          <h4>Section D — Declaration of Competency and Intent to Be Bound</h4>
+          <p>I declare that I am of sound mind and competent to enter into this agreement. I am at least 18 years of age, or if under 18 years of age, I have the consent of my parent or guardian who has also signed this waiver. I am voluntarily participating in activities at Bell Acqua Lake with knowledge of the risks involved.</p>
+          <p>I intend this release to be a complete and unconditional release of all liability to the greatest extent allowed by law. I agree that if any portion of this agreement is found to be void or unenforceable, the remaining portions shall remain in full force and effect.</p>
+          <p>I have read this entire agreement and I fully understand its terms. I understand that I am giving up substantial rights by signing it. I acknowledge that I am signing freely and voluntarily, and intend my signature to be a complete and unconditional release of all liability to the greatest extent allowed by law.</p>
+
+          <h4>Section E — Unconditional General Release from Liability</h4>
+          <p>I, for myself, my heirs, personal representatives, or assigns, do hereby release, waive, discharge and covenant to hold harmless Bell Acqua, Inc. and its shareholders from liability from any and all claims including the negligence of Bell Acqua, Inc. and its shareholders, resulting in personal injury, accidents or illnesses (including death), and property loss arising from, but not limited to, participation in water sports and recreational activities at the property located at 935 E Street, Rio Linda, CA.</p>
+          <p><strong>NATURAL GUARDIAN:</strong> If I am signing as the natural guardian or parent on behalf of a minor child, I affirm that I am the parent or legal guardian of the minor, I have the legal authority to sign on behalf of the minor, and I agree to all the terms of this waiver on behalf of the minor and myself.</p>
+        </div>
+
+        <label class="chkrow"><input type="checkbox" id="agreeA"> I agree to Section A — Assumption of Inherent Risks</label>
+        <label class="chkrow"><input type="checkbox" id="agreeB"> I agree to Section B — Indemnity Agreement</label>
+        <label class="chkrow"><input type="checkbox" id="agreeC"> I agree to Section C — Waiver and Release of Liability</label>
+        <label class="chkrow"><input type="checkbox" id="agreeD"> I agree to Section D — Declaration of Competency</label>
+        <label class="chkrow"><input type="checkbox" id="agreeE"> I agree to Section E — Unconditional General Release, and I am signing as parent / legal guardian on behalf of my skier</label>
+
+        <div class="photorow">
+          <b>Photo release:</b> may we share photos or video of your skier on our social media and website? No monetary exchange; images are never edited beyond cropping.
+          <label><input type="radio" name="photoConsent" value="yes"> I consent</label>
+          <label><input type="radio" name="photoConsent" value="no"> I do not consent</label>
+        </div>
+
+        <div class="row" style="margin-top:16px;">
+          <div class="field"><label for="wSigner">Parent / guardian full name (print)</label><input id="wSigner"></div>
+          <div class="field full"><label>Signature <span class="opt">(draw with mouse or finger)</span></label>
+            <canvas id="sigCanvas" class="sig-canvas"></canvas>
+            <button type="button" class="btn btn-back" id="sigClear" style="margin-top:8px;padding:8px 14px;font-size:13px;">Clear signature</button>
+          </div>
+        </div>
+
+        <div class="err" id="eW"></div>
+        <div class="actions">
+          <button class="btn btn-back" id="backW">Back</button>
+          <button class="btn btn-primary" id="to4">Agree &amp; continue to payment</button>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="pane" id="p4">
         <h2>Secure checkout</h2>
         <p class="hint" id="payFor">Paying today: $2,000.00 — full Fall 2026 season.</p>
         <div class="field"><label for="cardName">Name on card</label><input id="cardName" autocomplete="cc-name"></div>
         <div class="field"><label>Card details</label><div id="card-element"></div></div>
         <div class="err" id="e3"></div>
         <div class="actions">
-          <button class="btn btn-back" id="back2">Back</button>
+          <button class="btn btn-back" id="back3">Back</button>
           <button class="btn btn-pay" id="payBtn">&#128274; Pay $2,000.00</button>
         </div>
         <p class="secure">Your card is processed by Stripe. Bell Acqua Lake never sees or stores your card number.</p>
@@ -226,9 +302,8 @@
   <div class="card" id="done">
     <div class="tick">&#10003;</div>
     <h2>Your skier's spot is confirmed</h2>
-    <p id="doneMsg">We've emailed your receipt and Welcome Guide. One last thing before September 15: every youth skier needs a signed safety waiver on file.</p>
-    <div class="ref" id="doneRef"></div><br>
-    <a class="waiver" href="https://bellacqualake.com/waiver" id="waiverLink">Sign the Safety Waiver &rarr;</a>
+    <p id="doneMsg">Your safety waiver is signed and on file, and we've emailed your receipt and Welcome Guide. We'll see you on the water September 15 &mdash; a member of our team will reach out before then with everything you need for day one.</p>
+    <div class="ref" id="doneRef"></div>
   </div>
 
   <footer>
@@ -250,7 +325,6 @@ const CONFIG = {
   CHECKOUT_ENDPOINT:       'https://euznpkrkkaieykznztho.supabase.co/functions/v1/membership-checkout',
   PAYMENT_INTENT_ENDPOINT: 'https://euznpkrkkaieykznztho.supabase.co/functions/v1/create-payment-intent',
   GHL_YSC_WEBHOOK_URL:     'https://services.leadconnectorhq.com/hooks/rqN9GeQaEfpisadTVaUO/webhook-trigger/5567acbc-46db-423e-b9bc-aa1ce705cd5d',
-  WAIVER_URL:              'https://bellacqualake.com/waiver',
   SEASON:                  'fall-2026',
   PRICE:                   2000,
 };
@@ -262,7 +336,7 @@ const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 
 const COHORT_LABEL = { tue_thu:'Tuesday & Thursday, 4:00–6:30 PM', mon_wed:'Monday & Wednesday, 4:00–6:30 PM' };
 
-const S = { step:1, cohort:null, seats:{}, stripe:null, card:null, mounted:false, processing:false, regId:null, customerId:null };
+const S = { step:1, cohort:null, seats:{}, stripe:null, card:null, mounted:false, processing:false, regId:null, customerId:null, sigData:null, sigInit:false };
 
 const $  = id => document.getElementById(id);
 const sbH = extra => Object.assign({
@@ -306,13 +380,58 @@ function renderSeats(){
 /* ── step navigation ── */
 function goto(n){
   S.step = n;
-  [1,2,3].forEach(i=>{
+  [1,2,3,4].forEach(i=>{
     $('p'+i).classList.toggle('on', i===n);
     const s = $('s'+i);
     s.className = 'step' + (i===n ? ' active' : i<n ? ' done' : '');
   });
   window.scrollTo({ top:0, behavior:'smooth' });
-  if(n===3) mountCard();
+  if(n===3) initSig();
+  if(n===4) mountCard();
+}
+
+/* ── waiver signature pad ── */
+function initSig(){
+  if(!val('wSigner')) $('wSigner').value = `${val('pFirst')} ${val('pLast')}`.trim();
+  if(S.sigInit) return;
+  const c = $('sigCanvas');
+  const ratio = window.devicePixelRatio || 1;
+  c.width = c.offsetWidth * ratio; c.height = 140 * ratio;
+  const ctx = c.getContext('2d');
+  ctx.scale(ratio, ratio);
+  ctx.strokeStyle = '#0d2137'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  let drawing = false, last = null;
+  const pos = e => {
+    const r = c.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+  const start = e => { drawing = true; last = pos(e); e.preventDefault(); };
+  const move = e => {
+    if(!drawing) return;
+    const p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p; S.sigData = c.toDataURL('image/png');
+    e.preventDefault();
+  };
+  const end = () => { drawing = false; };
+  c.onmousedown = start; c.onmousemove = move; c.onmouseup = end; c.onmouseleave = end;
+  c.ontouchstart = start; c.ontouchmove = move; c.ontouchend = end;
+  S.sigInit = true;
+}
+
+function validateWaiver(){
+  const err = $('eW');
+  err.textContent = '';
+  for(const s of ['A','B','C','D','E']){
+    if(!$('agree'+s).checked){ err.textContent = `Please read and agree to Section ${s}.`; return false; }
+  }
+  if(!document.querySelector('input[name="photoConsent"]:checked')){
+    err.textContent = 'Please choose an option for the photo release.'; return false;
+  }
+  if(!val('wSigner')){ err.textContent = 'Please print the parent / guardian full name.'; return false; }
+  if(!S.sigData){ err.textContent = 'Please sign in the signature box.'; return false; }
+  return true;
 }
 
 function val(id){ return $(id).value.trim(); }
@@ -425,12 +544,24 @@ async function recordRegistration(piId){
     emergency_contact:val('eName'), emergency_phone:val('ePhone'),
     medical_notes:val('med') || null,
     amount_paid:TEST_MODE ? 0 : CONFIG.PRICE, stripe_pi:piId, stripe_customer:S.customerId,
-    status:TEST_MODE ? 'pending' : 'paid'
+    status:TEST_MODE ? 'pending' : 'paid',
+    waiver_signed:true, waiver_signed_at:new Date().toISOString(),
+    waiver_signer:val('wSigner'), waiver_signature:S.sigData,
+    photo_consent:document.querySelector('input[name="photoConsent"]:checked')?.value === 'yes'
   };
   try{
-    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/ysc_registrations`,{
+    let res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/ysc_registrations`,{
       method:'POST', headers:sbH({'Prefer':'return=minimal'}), body:JSON.stringify(row)
     });
+    if(!res.ok){
+      /* If the waiver columns haven't been migrated yet, still save the
+         registration itself — losing a paying parent's row is never OK. */
+      const { waiver_signer, waiver_signature, photo_consent, ...base } = row;
+      res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/ysc_registrations`,{
+        method:'POST', headers:sbH({'Prefer':'return=minimal'}), body:JSON.stringify(base)
+      });
+      if(!res.ok) console.error('Registration row failed (payment DID succeed):', res.status, row);
+    }
   }catch(e){ console.error('Registration row failed (payment DID succeed):', e, row); }
 
   /* Hand off to GoHighLevel for the receipt, welcome guide and tagging. */
@@ -444,7 +575,9 @@ async function recordRegistration(piId){
       preferred_schedule:COHORT_LABEL[S.cohort] || S.cohort,
       registration_id:S.regId, registration_status:TEST_MODE ? 'test' : 'paid',
       amount_paid:TEST_MODE ? 0 : CONFIG.PRICE, stripe_payment_intent:piId,
-      waiver_url:CONFIG.WAIVER_URL, waiver_signed:false,
+      waiver_signed:true, waiver_signed_at:new Date().toISOString(),
+      waiver_signer:val('wSigner'),
+      photo_consent:document.querySelector('input[name="photoConsent"]:checked')?.value === 'yes',
       program:'Youth Ski Club — Fall 2026', season:'Sept 15 – Oct 31, 2026',
       price:'$2,000', source:'Youth Ski Club Checkout',
       page_url:window.location.href, submitted_at:new Date().toISOString()
@@ -462,7 +595,6 @@ function showDone(){
   $('layout').style.display = 'none';
   $('done').style.display = 'block';
   $('doneRef').textContent = 'Registration ' + S.regId + ' · ' + (COHORT_LABEL[S.cohort] || '');
-  $('waiverLink').href = CONFIG.WAIVER_URL;
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
@@ -481,10 +613,20 @@ $('to2').addEventListener('click', ()=>{ if(validateStep1()) goto(2); });
 $('back1').addEventListener('click', ()=> goto(1));
 $('to3').addEventListener('click', ()=>{
   if(!S.cohort){ $('e2').textContent = 'Please choose a cohort to continue.'; return; }
-  $('payFor').textContent = `Paying today: ${money(CONFIG.PRICE)} — full Fall 2026 season, ${COHORT_LABEL[S.cohort]}.`;
   goto(3);
 });
-$('back2').addEventListener('click', ()=> goto(2));
+$('backW').addEventListener('click', ()=> goto(2));
+$('sigClear').addEventListener('click', ()=>{
+  const c = $('sigCanvas');
+  c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  S.sigData = null;
+});
+$('to4').addEventListener('click', ()=>{
+  if(!validateWaiver()) return;
+  $('payFor').textContent = `Paying today: ${money(CONFIG.PRICE)} — full Fall 2026 season, ${COHORT_LABEL[S.cohort]}.`;
+  goto(4);
+});
+$('back3').addEventListener('click', ()=> goto(3));
 $('payBtn').addEventListener('click', pay);
 $('payBtn').innerHTML = '&#128274; Pay ' + money(CONFIG.PRICE);
 
