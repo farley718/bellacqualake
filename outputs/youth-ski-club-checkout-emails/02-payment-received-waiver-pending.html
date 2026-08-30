@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment received — one step left before your skier hits the water</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F5FAFE;">
+
+<!-- Preheader (hidden) -->
+<div style="display:none;font-size:1px;color:#F5FAFE;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
+  Your payment is in and the spot is held — but your skier can't get on the water until the safety waiver is signed.
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5FAFE;">
+<tr><td align="center" style="padding:28px 14px;">
+
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+
+    <!-- Header -->
+    <tr><td style="background-color:#052A47;border-radius:14px 14px 0 0;padding:30px 36px;text-align:center;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:3px;color:#F0A500;text-transform:uppercase;">Bell Acqua Lake</div>
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;color:#FFFFFF;margin-top:10px;line-height:1.2;">Youth Ski Club &mdash; Fall 2026</div>
+    </td></tr>
+
+    <!-- Status band -->
+    <tr><td style="background-color:#F0A500;padding:14px 36px;text-align:center;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:#052A47;letter-spacing:1px;">&#10003; PAYMENT RECEIVED &middot; &#9888; SAFETY WAIVER STILL NEEDED</div>
+    </td></tr>
+
+    <!-- Body -->
+    <tr><td style="background-color:#FFFFFF;padding:34px 36px 10px;">
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#171A1C;margin:0 0 16px;">Hi {{contact.first_name}},</p>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#171A1C;margin:0 0 16px;">
+        Great news first: <strong>your payment went through and your skier's spot in the Fall 2026 season is held.</strong>
+      </p>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#171A1C;margin:0 0 16px;">
+        One important thing is still missing: <strong>we don't have a signed safety waiver on file for your skier yet</strong> &mdash;
+        and without it, they can't get on the water. Every youth skier must have a Waiver &amp; Release of Liability signed
+        by a parent or legal guardian before their first session on September 15.
+      </p>
+
+      <!-- Action card -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFF8EA;border:2px solid #F0A500;border-radius:10px;margin:22px 0;">
+        <tr><td style="padding:22px 24px;text-align:center;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#052A47;margin-bottom:8px;">Here's how to get it done (2 minutes):</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:14.5px;line-height:1.7;color:#3B5570;">
+            A member of our team will text and email you a personal waiver link within one business day.<br>
+            Can't wait, or haven't heard from us? Just reply to this email or call and we'll send it right over.
+          </div>
+          <div style="margin-top:16px;">
+            <a href="tel:9169195726" style="display:inline-block;background-color:#0B4C7C;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;padding:13px 30px;border-radius:999px;text-decoration:none;">Call (916) 919-5726</a>
+          </div>
+        </td></tr>
+      </table>
+
+      <!-- Receipt card -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5FAFE;border:1px solid #DCE8F1;border-radius:10px;margin:22px 0;">
+        <tr><td style="padding:20px 24px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:2px;color:#0B4C7C;text-transform:uppercase;margin-bottom:12px;">Registration Summary</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#171A1C;">
+            <tr><td style="padding:6px 0;color:#3B5570;">Registration ID</td><td align="right" style="padding:6px 0;font-weight:bold;">{{contact.registration_id}}</td></tr>
+            <tr><td style="padding:6px 0;color:#3B5570;">Skier</td><td align="right" style="padding:6px 0;font-weight:bold;">{{contact.skier_name}}</td></tr>
+            <tr><td style="padding:6px 0;color:#3B5570;">Cohort</td><td align="right" style="padding:6px 0;font-weight:bold;">{{contact.preferred_schedule}}</td></tr>
+            <tr><td style="padding:6px 0;color:#3B5570;">Season</td><td align="right" style="padding:6px 0;font-weight:bold;">Sept 15 &ndash; Oct 31, 2026</td></tr>
+            <tr><td style="padding:6px 0;color:#3B5570;">Safety waiver</td><td align="right" style="padding:6px 0;font-weight:bold;color:#D93B1E;">Not yet signed</td></tr>
+            <tr><td colspan="2" style="border-top:1px solid #DCE8F1;padding-top:10px;"></td></tr>
+            <tr><td style="padding:2px 0;font-weight:bold;">Amount paid</td><td align="right" style="padding:2px 0;font-weight:bold;font-size:18px;color:#0B4C7C;">$2,000.00</td></tr>
+          </table>
+        </td></tr>
+      </table>
+
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#171A1C;margin:24px 0 16px;">
+        Once the waiver is signed, you're completely set &mdash; a coach will reach out before day one with everything your skier needs for their first session.
+      </p>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#171A1C;margin:0 0 28px;">
+        See you on the water,<br><strong>The Bell Acqua Lake Team</strong>
+      </p>
+    </td></tr>
+
+    <!-- Footer -->
+    <tr><td style="background-color:#052A47;border-radius:0 0 14px 14px;padding:24px 36px;text-align:center;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#9FC0D8;line-height:1.7;">
+        Bell Acqua Lake &mdash; Sacramento's Premier Private Waterskiing Facility<br>
+        935 E Street, Rio Linda, California<br>
+        Questions? Call <a href="tel:9169195726" style="color:#F0A500;text-decoration:none;font-weight:bold;">(916) 919-5726</a>
+      </div>
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+</body>
+</html>
