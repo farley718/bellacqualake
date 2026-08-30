@@ -292,6 +292,8 @@
   </div>
   <div class="hdr-right">
     <div class="hdr-clock" id="liveClock">—</div>
+    <div id="hdrStaff" style="display:none;font-size:.8rem;font-weight:700;color:#fff;background:rgba(255,255,255,.12);padding:6px 12px;border-radius:999px;white-space:nowrap;">👤 <span id="hdrStaffName"></span></div>
+    <button class="hdr-btn" id="logoutBtn" style="display:none;" onclick="Dashboard.logout()">Log out</button>
     <button class="hdr-btn" id="refreshBtn" onclick="Dashboard.refresh()">
       <span id="refreshIcon">↻</span> Refresh
     </button>
@@ -306,6 +308,8 @@
   <button class="tab-btn" onclick="Dashboard.setTab('coupons')">🎟️ Coupons</button>
   <button class="tab-btn" onclick="Dashboard.setTab('referrals')">🎁 Referrals</button>
   <button class="tab-btn" onclick="Dashboard.setTab('waivers')">📝 Waivers</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('staff')">🧑‍🏫 Staff</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('activity')">🕘 Activity</button>
 </div>
 
 <!-- Dashboard -->
@@ -481,6 +485,37 @@
     </div>
   </div>
 
+  <!-- ─── Staff Tab ─── -->
+  <div class="tab-content" id="tab-staff">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Staff &amp; Notifications</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:.8rem;color:var(--gray);">Active staff with 🔔 on get every new-booking notification.</div>
+          <button class="btn-primary" id="addStaffBtn" style="display:none;" onclick="Dashboard.editStaff(null)">➕ Add Staff</button>
+        </div>
+      </div>
+      <div class="customers-table-wrap" id="staffGrid">
+        <div class="loading-row"><div class="loading-spinner"></div> Loading staff…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Activity Tab ─── -->
+  <div class="tab-content" id="tab-activity">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Activity Log</div>
+        <input id="auditSearch" type="text" placeholder="🔍 Search person, action, or ID…"
+               oninput="Dashboard.setAuditSearch(this.value)"
+               style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:'Inter',sans-serif;min-width:240px;">
+      </div>
+      <div class="customers-table-wrap" id="activityGrid">
+        <div class="loading-row"><div class="loading-spinner"></div> Loading activity…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── Members Tab ─── -->
   <div class="tab-content" id="tab-members">
     <div class="coupons-wrap" style="max-width: 1000px; margin: 0 auto;">
@@ -595,6 +630,12 @@ const DS = {
   affiliateDefaults: null, // { friend_discount_pct, reward_pct } from app_settings
   pageSize:       { customers:20, coupons:20, referrals:20, waivers:20 },
   page:           { customers:1,  coupons:1,  referrals:1,  waivers:1  },
+  staffToken:     null,   /* session token from staff_login (null = legacy shared-PIN mode) */
+  staffMe:        null,   /* { id, name, role } of the logged-in staff member */
+  staffList:      [],
+  auditSearch:    '',
+  auditPage:      1,
+  auditPageSize:  50,
   yscWaivers:     [],
   yscWaiversError:false,
   memberships:    [],
@@ -630,6 +671,35 @@ function generateTimeSlots(){
 }
 function sbH(extra){
   return Object.assign({'apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':`Bearer ${CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},extra||{});
+}
+
+/* ── Staff identity ── */
+/* The credential the PIN-or-token RPCs accept: personal session token when
+   logged in with a personal PIN, else the legacy shared PIN. */
+function staffCred(){ return DS.staffToken || CONFIG.STAFF_PIN; }
+function isAdmin(){ return !DS.staffMe || DS.staffMe.role === 'admin'; } /* legacy mode = full access */
+
+/* Fire-and-forget audit entry. In legacy shared-PIN mode there is no
+   session, so nothing can be attributed — actions are simply not logged. */
+function logAction(action, entityType, entityId, details){
+  if(!DS.staffToken) return;
+  fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_log`,{
+    method:'POST',headers:sbH(),
+    body:JSON.stringify({p_token:DS.staffToken,p_action:action,
+      p_entity_type:entityType||null,p_entity_id:entityId?String(entityId):null,
+      p_details:details||null}),
+  }).catch(()=>{});
+}
+
+function enterDashboard(){
+  document.getElementById('pinGate').style.display='none';
+  document.getElementById('mainDashboard').style.display='block';
+  document.getElementById('tabBar').style.display='flex';
+  if(DS.staffMe){
+    document.getElementById('hdrStaff').style.display='block';
+    document.getElementById('hdrStaffName').textContent=DS.staffMe.name+(DS.staffMe.role==='admin'?' · admin':'');
+    document.getElementById('logoutBtn').style.display='inline-flex';
+  }
 }
 function fmtMin(min){
   const h=Math.floor(min/60), m=min%60;
@@ -694,7 +764,7 @@ async function fetchAll(){
   /* Youth Ski Club waivers (PIN-gated RPC) + memberships, for the Waivers tab */
   try{
     const yRes = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_ysc_waivers`,{
-      method:'POST',headers:sbH(),body:JSON.stringify({p_staff_pin:CONFIG.STAFF_PIN})
+      method:'POST',headers:sbH(),body:JSON.stringify({p_staff_pin:staffCred()})
     });
     DS.yscWaivers = yRes.ok ? await yRes.json() : [];
     DS.yscWaiversError = !yRes.ok;
@@ -1315,7 +1385,7 @@ function renderReferrals(){
    (waiver_requests) and Youth Ski Club waivers (PIN-gated RPC).
    Validity = 1 year from signing.
    ────────────────────────────────────────────────────────────── */
-const WAIVER_TYPE_LEVEL={bi:'Beginner/Int.',srl:'Ski w/ Lesson'};
+const WAIVER_TYPE_LEVEL={bi:'Beginner/Int.',srl:'Ski w/ Lesson',beginner_intermediate:'Beginner/Int.',ski_ride_lesson:'Ski w/ Lesson',member:'Member'};
 
 function waiverMemberStatus(email){
   if(!email) return '—';
@@ -1368,7 +1438,7 @@ function buildWaiverRows(){
       type:'Youth Ski Club',
       signed_at:w.waiver_signed_at,
       level:w.skier_level?w.skier_level.charAt(0).toUpperCase()+w.skier_level.slice(1):'—',
-      dl:`bell-acqua-waiver.html?ysc=${encodeURIComponent(w.id)}&pin=${encodeURIComponent(CONFIG.STAFF_PIN)}&view=pdf`,
+      dl:`bell-acqua-waiver.html?ysc=${encodeURIComponent(w.id)}&pin=${encodeURIComponent(staffCred())}&view=pdf`,
     });
   });
   return rows;
@@ -1419,9 +1489,184 @@ function renderWaivers(){
 }
 
 /* ──────────────────────────────────────────────────────────────
+   STAFF TAB — roster, roles, PINs, notification toggles
+   ────────────────────────────────────────────────────────────── */
+async function renderStaffTab(){
+  const grid=document.getElementById('staffGrid');
+  document.getElementById('addStaffBtn').style.display=(DS.staffToken&&isAdmin())?'inline-flex':'none';
+  if(!DS.staffToken){
+    grid.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🧑‍🏫</div><div style="font-weight:600;margin-bottom:4px;">Staff accounts not active yet</div><div style="font-size:.82rem;color:var(--gray);">Run migration <code>20260831_staff_accounts.sql</code> in Supabase, then log in with your personal PIN (the shared PIN becomes the "Shared Legacy Admin" account).</div></div>`;
+    return;
+  }
+  try{
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_list`,{
+      method:'POST',headers:sbH(),body:JSON.stringify({p_token:DS.staffToken}),
+    });
+    DS.staffList=r.ok?await r.json():[];
+  }catch(e){ DS.staffList=[]; }
+  if(!DS.staffList.length){
+    grid.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🧑‍🏫</div><div style="font-weight:600;">No staff yet</div></div>`;
+    return;
+  }
+  const admin=isAdmin();
+  const rows=DS.staffList.map(m=>`<tr style="${!m.is_active?'opacity:.5;':''}">
+    <td><div class="cust-name">${m.name}${DS.staffMe&&m.id===DS.staffMe.id?' <span style="font-size:.7rem;color:var(--gray);">(you)</span>':''}</div>
+        <div style="font-size:.76rem;color:var(--gray);word-break:break-all;">${m.email||''}${m.email&&m.phone?' · ':''}${m.phone||''}</div></td>
+    <td style="white-space:nowrap;">${m.role==='admin'?'⭐ Admin':'Coach'}</td>
+    <td style="white-space:nowrap;">${m.has_pin?'🔑 Set':'<span style="color:var(--red);font-weight:700;">No PIN</span>'}</td>
+    <td>${admin
+        ?`<button class="toggle-badge ${m.notify_new_bookings?'active-badge':'inactive-badge'}" onclick="Dashboard.toggleStaffNotify('${m.id}')">${m.notify_new_bookings?'🔔 On':'🔕 Off'}</button>`
+        :(m.notify_new_bookings?'🔔 On':'🔕 Off')}</td>
+    <td>${admin
+        ?`<button class="toggle-badge ${m.is_active?'active-badge':'inactive-badge'}" onclick="Dashboard.toggleStaffActive('${m.id}')">${m.is_active?'Active':'Inactive'}</button>`
+        :(m.is_active?'Active':'Inactive')}</td>
+    <td style="white-space:nowrap;">${admin?`
+      <button class="btn-outline-sm" onclick="Dashboard.editStaff('${m.id}')">✏️ Edit</button>
+      <button class="btn-outline-sm" onclick="Dashboard.setStaffPin('${m.id}')">🔑 PIN</button>`:''}</td>
+  </tr>`).join('');
+  grid.innerHTML=`<table class="customers-table">
+    <thead><tr><th>Staff Member</th><th>Role</th><th>PIN</th><th>New-Booking Alerts</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="padding:10px 14px;background:white;border-top:1px solid var(--border);font-size:.76rem;color:var(--gray);">
+      🔔 Active staff with alerts ON are included in the <code>staff_notify_emails</code> / <code>staff_notify_phones</code> fields of every new-booking webhook — point the GHL notification step at those fields once and roster changes apply automatically.
+    </div>`;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ACTIVITY TAB — audit log
+   ────────────────────────────────────────────────────────────── */
+const AUDIT_LABELS={login:'🔓 Logged in',coupon_created:'🎟️ Coupon created',coupon_toggled:'🎟️ Coupon on/off',coupon_deleted:'🗑️ Coupon deleted',free_link_created:'🆓 Free booking link',booking_cancelled:'✕ Booking cancelled',booking_created:'📅 Booking created (staff)',date_blocked:'⛔ Date blocked',date_opened:'✅ Date opened',slots_updated:'⛔ Slot blocks changed',range_blocked:'⛔ Time range blocked',range_opened:'✅ Time range opened',member_added:'🏅 Member added',member_dates_updated:'🏅 Member dates changed',member_password_reset:'🔐 Member password reset',installment_marked_paid:'💵 Installment marked paid',affiliate_toggled:'🎁 Affiliate on/off',affiliate_rewards_updated:'🎁 Affiliate rewards changed',affiliate_defaults_updated:'🎁 Program defaults changed',staff_added:'🧑‍🏫 Staff added',staff_updated:'🧑‍🏫 Staff updated',staff_pin_set:'🔑 Staff PIN set'};
+
+async function renderActivity(){
+  const grid=document.getElementById('activityGrid');
+  if(!DS.staffToken){
+    grid.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🕘</div><div style="font-weight:600;margin-bottom:4px;">Activity log not active yet</div><div style="font-size:.82rem;color:var(--gray);">Run migration <code>20260831_staff_accounts.sql</code> and log in with a personal PIN — actions taken under the shared PIN cannot be attributed and are not logged.</div></div>`;
+    return;
+  }
+  let data={total:0,rows:[]};
+  try{
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_audit`,{
+      method:'POST',headers:sbH(),
+      body:JSON.stringify({p_token:DS.staffToken,p_limit:DS.auditPageSize,
+        p_offset:(DS.auditPage-1)*DS.auditPageSize,p_search:DS.auditSearch||null}),
+    });
+    if(r.ok) data=await r.json();
+  }catch(e){}
+  if(!data.rows.length){
+    grid.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🕘</div><div style="font-weight:600;">${DS.auditSearch?'Nothing matches that search':'No activity yet'}</div></div>`;
+    return;
+  }
+  const pages=Math.max(1,Math.ceil(data.total/DS.auditPageSize));
+  const rows=data.rows.map(l=>{
+    const when=new Date(l.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const det=l.details?Object.entries(l.details).map(([k,v])=>`${k}: ${v}`).join(' · '):'';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:.8rem;color:var(--gray);">${when}</td>
+      <td><div class="cust-name">${l.staff_name}</div></td>
+      <td style="white-space:nowrap;">${AUDIT_LABELS[l.action]||l.action}</td>
+      <td style="font-size:.8rem;">${l.entity_id?`<span style="font-family:monospace;">${l.entity_id}</span>`:''}${det?`<div style="font-size:.74rem;color:var(--gray);">${det}</div>`:''}</td>
+    </tr>`;
+  }).join('');
+  grid.innerHTML=`<table class="customers-table">
+    <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:white;border-top:1px solid var(--border);font-size:.8rem;color:var(--gray);">
+      <span><strong>${data.total}</strong> entries</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-outline-sm" ${DS.auditPage<=1?'disabled style="opacity:.4;"':''} onclick="Dashboard.setAuditPage(${DS.auditPage-1})">‹ Prev</button>
+        <span>Page ${DS.auditPage} / ${pages}</span>
+        <button class="btn-outline-sm" ${DS.auditPage>=pages?'disabled style="opacity:.4;"':''} onclick="Dashboard.setAuditPage(${DS.auditPage+1})">Next ›</button>
+      </div>
+    </div>`;
+}
+
+/* ──────────────────────────────────────────────────────────────
    DASHBOARD CONTROLLER
    ────────────────────────────────────────────────────────────── */
 const Dashboard = {
+
+  /* ── Staff management ── */
+  editStaff(id){
+    const m=id?DS.staffList.find(x=>x.id===id):null;
+    this.showModal(m?'✏️ Edit Staff Member':'➕ Add Staff Member',`
+      <div style="text-align:left;display:grid;gap:10px;">
+        <div><label style="font-size:.8rem;font-weight:700;">Name *</label>
+          <input id="st-name" value="${m?m.name.replace(/"/g,'&quot;'):''}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;"></div>
+        <div><label style="font-size:.8rem;font-weight:700;">Email (for booking alerts)</label>
+          <input id="st-email" type="email" value="${m?.email||''}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;"></div>
+        <div><label style="font-size:.8rem;font-weight:700;">Phone (for SMS alerts)</label>
+          <input id="st-phone" type="tel" value="${m?.phone||''}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;"></div>
+        <div><label style="font-size:.8rem;font-weight:700;">Role</label>
+          <select id="st-role" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;">
+            <option value="coach" ${m?.role==='coach'?'selected':''}>Coach</option>
+            <option value="admin" ${m?.role==='admin'?'selected':''}>Admin</option>
+          </select></div>
+        <label style="font-size:.85rem;display:flex;gap:8px;align-items:center;"><input type="checkbox" id="st-notify" ${!m||m.notify_new_bookings?'checked':''} style="width:auto;"> 🔔 Notify on new bookings</label>
+      </div>`,
+      'confirm', m?'Save':'Add Staff',
+      async ()=>{
+        const name=document.getElementById('st-name')?.value.trim();
+        if(!name){alert('Name is required — nothing was saved.');return;}
+        const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_save`,{
+          method:'POST',headers:sbH(),
+          body:JSON.stringify({p_token:DS.staffToken,p_id:id||null,p_name:name,
+            p_email:document.getElementById('st-email')?.value.trim()||null,
+            p_phone:document.getElementById('st-phone')?.value.trim()||null,
+            p_role:document.getElementById('st-role')?.value||'coach',
+            p_notify:!!document.getElementById('st-notify')?.checked,
+            p_active:m?m.is_active:true}),
+        });
+        if(!r.ok){alert('Could not save staff member (admin only).');return;}
+        const d=await r.json();
+        if(!id&&d.id) this.setStaffPin(d.id,name);
+        renderStaffTab();
+      });
+  },
+
+  setStaffPin(id,newName){
+    const m=DS.staffList.find(x=>x.id===id);
+    this.showModal('🔑 Set Staff PIN',`
+      <div style="text-align:left;">
+        <div style="font-size:.85rem;margin-bottom:8px;">New PIN for <strong>${newName||m?.name||'staff member'}</strong> (4–8 digits, must be unique):</div>
+        <input id="st-pin" type="text" inputmode="numeric" maxlength="8" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;letter-spacing:4px;font-size:1.1rem;text-align:center;">
+      </div>`,
+      'confirm','Set PIN',
+      async ()=>{
+        const pin=document.getElementById('st-pin')?.value.trim();
+        const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_set_pin`,{
+          method:'POST',headers:sbH(),
+          body:JSON.stringify({p_token:DS.staffToken,p_staff_id:id,p_new_pin:pin}),
+        });
+        const d=r.ok?await r.json():{ok:false,reason:'Could not set PIN (admin only).'};
+        if(!d.ok){alert(d.reason||'Could not set that PIN.');return;}
+        renderStaffTab();
+      });
+  },
+
+  async toggleStaffNotify(id){
+    const m=DS.staffList.find(x=>x.id===id); if(!m)return;
+    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_save`,{
+      method:'POST',headers:sbH(),
+      body:JSON.stringify({p_token:DS.staffToken,p_id:id,p_name:m.name,p_email:m.email,
+        p_phone:m.phone,p_role:m.role,p_notify:!m.notify_new_bookings,p_active:m.is_active}),
+    });
+    renderStaffTab();
+  },
+
+  async toggleStaffActive(id){
+    const m=DS.staffList.find(x=>x.id===id); if(!m)return;
+    if(DS.staffMe&&id===DS.staffMe.id&&m.is_active&&!confirm('Deactivate YOUR OWN account? You will be logged out and unable to log back in.'))return;
+    await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_save`,{
+      method:'POST',headers:sbH(),
+      body:JSON.stringify({p_token:DS.staffToken,p_id:id,p_name:m.name,p_email:m.email,
+        p_phone:m.phone,p_role:m.role,p_notify:m.notify_new_bookings,p_active:!m.is_active}),
+    });
+    renderStaffTab();
+  },
+
+  /* ── Activity log controls ── */
+  setAuditSearch(v){ DS.auditSearch=v; DS.auditPage=1; renderActivity(); },
+  setAuditPage(p){ DS.auditPage=Math.max(1,p); renderActivity(); },
 
   setWaiverSearch(v){
     DS.waiverSearch=v;
@@ -1429,19 +1674,38 @@ const Dashboard = {
     renderWaivers();
   },
 
-  checkPin(){
+  async checkPin(){
     const input=document.getElementById('pinInput');
-    if(input.value.trim()===CONFIG.STAFF_PIN){
-      sessionStorage.setItem('staffPin',input.value.trim());
-      document.getElementById('pinGate').style.display='none';
-      document.getElementById('mainDashboard').style.display='block';
-      document.getElementById('tabBar').style.display='flex';
-      this.init();
-    } else {
+    const pin=input.value.trim();
+    const fail=msg=>{
       input.classList.add('pin-error');
-      document.getElementById('pinErrorMsg').textContent='Incorrect PIN. Please try again.';
+      document.getElementById('pinErrorMsg').textContent=msg||'Incorrect PIN. Please try again.';
       input.value='';
-    }
+    };
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_login`,{
+        method:'POST',headers:sbH(),body:JSON.stringify({p_pin:pin}),
+      });
+      if(r.status===404) throw new Error('no_rpc');   /* migration not run — legacy mode */
+      const d=await r.json();
+      if(!r.ok||!d.ok){ fail(); return; }
+      DS.staffToken=d.token; DS.staffMe=d.staff;
+      sessionStorage.setItem('staffSession',JSON.stringify({token:d.token,staff:d.staff}));
+      enterDashboard();
+      this.init();
+      return;
+    }catch(e){ /* fall through to legacy shared-PIN check */ }
+    if(pin===CONFIG.STAFF_PIN){
+      sessionStorage.setItem('staffPin',pin);
+      enterDashboard();
+      this.init();
+    } else fail();
+  },
+
+  logout(){
+    sessionStorage.removeItem('staffSession');
+    sessionStorage.removeItem('staffPin');
+    location.reload();
   },
 
   async init(){
@@ -1465,6 +1729,8 @@ const Dashboard = {
       if(DS.activeTab==='members') this.loadMembers();
       if(DS.activeTab==='referrals') renderReferrals();
       if(DS.activeTab==='waivers') renderWaivers();
+      if(DS.activeTab==='staff') renderStaffTab();
+      if(DS.activeTab==='activity') renderActivity();
     }catch(e){console.error('Load error:',e);}
     document.getElementById('refreshIcon').className='';
     btn.classList.remove('refreshing');
@@ -1474,7 +1740,7 @@ const Dashboard = {
 
   setTab(tab){
     DS.activeTab=tab;
-    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers'][i]===tab));
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers','staff','activity'][i]===tab));
     document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if(tab==='customers') renderCustomers();
@@ -1482,6 +1748,8 @@ const Dashboard = {
     if(tab==='members')   this.loadMembers();
     if(tab==='referrals') renderReferrals();
     if(tab==='waivers')   renderWaivers();
+    if(tab==='staff')     renderStaffTab();
+    if(tab==='activity')  renderActivity();
   },
 
   selectDate(key){
@@ -1547,6 +1815,7 @@ const Dashboard = {
           headers:sbH({'Prefer':'return=minimal'}),
           body:JSON.stringify({date:dateKey,reason,blocked_by:'staff'}),
         });
+        logAction('date_blocked','date',dateKey,reason?{reason}:null);
         await this.loadData();
         this.selectDate(dateKey);
       }
@@ -1564,6 +1833,7 @@ const Dashboard = {
           method:'DELETE',
           headers:sbH(),
         });
+        logAction('date_opened','date',dateKey);
         await this.loadData();
         this.selectDate(dateKey);
       }
@@ -1674,6 +1944,7 @@ const Dashboard = {
     });
 
     await Promise.all(ops);
+    if(ops.length) logAction('slots_updated','date',dateKey,{changes:ops.length,reason:reason||undefined});
     await this.loadData();
     this.selectDate(dateKey);
   },
@@ -1693,6 +1964,7 @@ const Dashboard = {
           await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_slots?id=eq.${encodeURIComponent(row.id)}`,{
             method:'DELETE',headers:sbH(),
           });
+          logAction('slots_updated','date',dateKey,{unblocked:slotId});
         }
         await this.loadData();
         this.selectDate(dateKey);
@@ -1747,6 +2019,7 @@ const Dashboard = {
       alert('Could not save the block. If this is the first time using time-range blocks, run the migration 20260820_blocking_and_rewards.sql in the Supabase SQL Editor first.');
       return;
     }
+    logAction('range_blocked','date',dateKey,{from:fmtMin(start),until:fmtMin(end),calendars:cals.join('/'),reason:reason||undefined});
     await this.loadData();
     this.selectDate(dateKey);
   },
@@ -1758,6 +2031,7 @@ const Dashboard = {
       'confirm','Remove Block',
       async ()=>{
         await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/blocked_ranges?id=eq.${encodeURIComponent(id)}`,{method:'DELETE',headers:sbH()});
+        logAction('range_opened','date',dateKey,{range_id:id});
         await this.loadData();
         this.selectDate(dateKey);
       }
@@ -1809,6 +2083,7 @@ const Dashboard = {
       if(resultEl)resultEl.innerHTML='<div style="color:var(--red);font-size:.82rem;">Could not create the coupon. Please try again.</div>';
       return;
     }
+    logAction('free_link_created','coupon',code,{for:desc,calendar:cal});
     const pageUrl=cal==='srl'?CONFIG.LESSON_PAGE_URL:CONFIG.BOOKING_PAGE_URL;
     const link=`${pageUrl}?coupon=${code}`;
     if(resultEl){
@@ -1877,6 +2152,7 @@ const Dashboard = {
           body:JSON.stringify({p_id:id,p_friend_pct:friend,p_reward_pct:reward}),
         });
         if(!res.ok){alert('Could not save. If this is the first time editing rewards, run the migration 20260820_blocking_and_rewards.sql in the Supabase SQL Editor first.');return;}
+        logAction('affiliate_rewards_updated','affiliate',id,{name:a.name,friend_pct:friend,reward_pct:reward});
         await this.loadData();
         renderReferrals();
       }
@@ -1909,6 +2185,7 @@ const Dashboard = {
           body:JSON.stringify({p_friend_pct:friend,p_reward_pct:reward,p_apply_existing:applyAll}),
         });
         if(!res.ok){alert('Could not save. If this is the first time editing defaults, run the migration 20260820_blocking_and_rewards.sql in the Supabase SQL Editor first.');return;}
+        logAction('affiliate_defaults_updated','affiliate',null,{friend_pct:friend,reward_pct:reward,applied_to_existing:applyAll});
         await this.loadData();
         renderReferrals();
       }
@@ -1954,6 +2231,7 @@ const Dashboard = {
             return;
           }
         }
+        logAction('booking_cancelled','booking',bookingId,{guest:guestName});
         await this.loadData();
         if(DS.selectedDate) this.selectDate(DS.selectedDate);
       }
@@ -2108,6 +2386,7 @@ const Dashboard = {
       if(errEl)errEl.textContent=msg;return;
     }
 
+    logAction('booking_created','booking',bookingId,{guest:`${fn} ${ln}`,date:dateKey,type,slots:selSlots.length});
     await this.loadData();
     this.selectDate(dateKey);
   },
@@ -2149,6 +2428,7 @@ const Dashboard = {
       body:JSON.stringify({code,discount_type:type,discount_value:isBuy2Get1?1:value,max_uses:maxUses,expires_at:expiry?new Date(expiry).toISOString():null,description:desc||(isBuy2Get1?'Buy 2 slots, get 1 free (3 slots required · once per email)':null),is_active:true,uses_count:0}),
     });
     if(!res.ok){const t=await res.text();errEl.textContent='Error: '+(JSON.parse(t)?.message||t);return;}
+    logAction('coupon_created','coupon',code,{type,value:isBuy2Get1?null:value,max_uses:maxUses});
     this.toggleAddCouponForm();
     await this.loadData();
     renderCoupons();
@@ -2158,12 +2438,14 @@ const Dashboard = {
     await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?code=eq.${encodeURIComponent(code)}`,{
       method:'PATCH',headers:sbH({'Prefer':'return=minimal'}),body:JSON.stringify({is_active:active}),
     });
+    logAction('coupon_toggled','coupon',code,{active});
     await this.loadData();renderCoupons();
   },
 
   deleteCoupon(code){
     this.showModal('🗑️ Delete Coupon',`Delete coupon code <strong>${code}</strong>? This cannot be undone.`,'danger','Delete',async()=>{
       await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/coupon_codes?code=eq.${encodeURIComponent(code)}`,{method:'DELETE',headers:sbH()});
+      logAction('coupon_deleted','coupon',code);
       await this.loadData();renderCoupons();
     });
   },
@@ -2173,6 +2455,7 @@ const Dashboard = {
     await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/affiliate_set_active`,{
       method:'POST',headers:sbH(),body:JSON.stringify({p_id:id,p_active:active}),
     });
+    logAction('affiliate_toggled','affiliate',id,{active});
     await this.loadData();renderReferrals();
   },
 
@@ -2201,6 +2484,7 @@ const Dashboard = {
       document.getElementById('amFirst').value = ''; document.getElementById('amLast').value = '';
       document.getElementById('amEmail').value = ''; document.getElementById('amPass').value = '';
       document.getElementById('amStart').value = ''; document.getElementById('amEnd').value = '';
+      logAction('member_added','member',em,{name:`${fn} ${ln}`,start:mStart||null,end:mEnd||null});
       errEl.style.color = 'var(--green)';
       errEl.textContent = 'Member created successfully! They can now log in.';
       setTimeout(()=> { errEl.textContent=''; errEl.style.color='var(--red)'; }, 5000);
@@ -2322,6 +2606,7 @@ const Dashboard = {
             });
           }
         }
+        logAction('installment_marked_paid','membership',membershipId,{installment:seq,amount:parseFloat(amount)});
         this.loadMemberships();
       }
     );
@@ -2354,6 +2639,7 @@ const Dashboard = {
           alert(`❌ ${msg}`);
           return;
         }
+        logAction('member_password_reset','member',id,{name});
         alert(`✅ Password for ${name} has been reset successfully.`);
       }
     );
@@ -2376,6 +2662,7 @@ const Dashboard = {
         method: 'PATCH', headers: sbH({'Prefer':'return=minimal'}),
         body: JSON.stringify({ membership_start: s||null, membership_end: e||null })
       });
+      logAction('member_dates_updated','member',id,{name,start:s||null,end:e||null});
       this.loadMembers();
     });
   },
@@ -2413,11 +2700,25 @@ const Dashboard = {
 /* ──────────────────────────────────────────────────────────────
    BOOT
    ────────────────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async ()=>{
+  /* Resume a personal-PIN session if one is stored and still valid */
+  const stored=sessionStorage.getItem('staffSession');
+  if(stored){
+    try{
+      const sess=JSON.parse(stored);
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/staff_session_info`,{
+        method:'POST',headers:sbH(),body:JSON.stringify({p_token:sess.token}),
+      });
+      const d=r.ok?await r.json():null;
+      if(d&&d.ok){
+        DS.staffToken=sess.token; DS.staffMe=d.staff;
+        enterDashboard(); Dashboard.init(); return;
+      }
+      sessionStorage.removeItem('staffSession');
+    }catch(e){}
+  }
   if(sessionStorage.getItem('staffPin')===CONFIG.STAFF_PIN){
-    document.getElementById('pinGate').style.display='none';
-    document.getElementById('mainDashboard').style.display='block';
-    document.getElementById('tabBar').style.display='flex';
+    enterDashboard();
     Dashboard.init();
   }
   document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')Dashboard.checkPin();});

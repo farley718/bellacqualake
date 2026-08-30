@@ -2671,6 +2671,18 @@ const GHL = {
   async sendBookingConfirmedWebhook({ bookingRef, firstName, lastName, email, phone, partySize, totalAmount, slots, bookingDate }) {
     if (!CONFIG.GHL_BOOKING_CONFIRMED_WEBHOOK_URL || CONFIG.GHL_BOOKING_CONFIRMED_WEBHOOK_URL.includes('YOUR_')) return;
     const manageUrl = `${CONFIG.MANAGE_PAGE_URL}?ref=${encodeURIComponent(bookingRef)}&email=${encodeURIComponent(email)}`;
+    /* Live staff notification roster (staff dashboard → Staff tab). The GHL
+       workflow's internal-notify step should send to these payload fields, so
+       adding/removing a coach updates notifications with no GHL edits. */
+    let staffNotify = { emails: '', phones: '' };
+    try {
+      const nr = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/booking_notify_recipients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': CONFIG.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}` },
+        body: '{}',
+      });
+      if (nr.ok) staffNotify = await nr.json();
+    } catch (e) { /* roster unavailable — webhook still fires */ }
     return fetch(CONFIG.GHL_BOOKING_CONFIRMED_WEBHOOK_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2686,6 +2698,8 @@ const GHL = {
         booking_date:  bookingDate || '',
         manage_url:    manageUrl,
         status:        'confirmed',
+        staff_notify_emails: staffNotify.emails || '',
+        staff_notify_phones: staffNotify.phones || '',
       }),
     }).catch(e => console.warn('GHL booking confirmed webhook error:', e));
   },
