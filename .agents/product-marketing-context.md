@@ -42,42 +42,8 @@ Local water sports facilities and ski clubs.
 
 ## Session Notes
 
-### Session Update: 2026-05-11 (Zoom Sync)
-**Summary:**
-Processed meeting notes regarding three upcoming marketing campaigns: 20% discount for historical ski ride clients, 2-for-1 for beginner/intermediate old clients, and 2-for-1 VIP for new leads. Facebook ads payment issue resolved, leads flowing. Transitioning social reporting to weekly snapshots.
-**Next Priority:** Update booking platform discount logic (min 3 bookings) and record mobile portal walkthrough.
----
-
-### Session Update: 2026-06-08
-**Summary:**
-Built the full VIP Membership Giveaway campaign for June Facebook Ads. Created landing page copy, 3-email sequence (with Buy 2 Get 1 Free lesson promo code VIPBONUS in Email 1), 2 SMS messages, and a Thank You page. Built both landing page and thank you page as production-ready HTML with Bell Acqua Lake branding. Wired the landing page form to POST to the GHL webhook and redirect to the thank you page. Tested the webhook successfully. All assets saved to `outputs/`. Next session should focus on building the GHL workflow automation and publishing the Facebook Ads campaign.
----
-
-### Session Update: 2026-06-24
-**Summary:**
-Created Supabase member account for `john.farley.pesigan@gmail.com` with password `password123`. Resolved database schema errors by executing a migration script to create the missing `member_bookings` table. Updated the Member Portal (`bell-acqua-member.html`) slot generation logic to produce bottom-of-the-hour 30-minute slots starting at 7:30 AM (matching public booking guidelines). Deployed the portal and all associated updates to the live Netlify production environment.
----
-## Recent Technical Updates (June 2026)
-
-- **Member Booking Dashboard**: Built an independent member dashboard (`bell-acqua-member.html`) where active members can book up to 2 time slots per day.
-- **Membership Dates**: Added functionality to restrict member booking access based on active membership dates (`membership_start` and `membership_end`).
-- **Staff Dashboard Integration**: Staff dashboard (`bell-acqua-staff.html`) now displays member bookings, correctly mapping 15-minute slot intervals to the staff's hourly layout.
-- **Admin Password Reset**: Implemented a secure RPC function (`admin_update_user_password`) to allow staff to reset member passwords directly from the UI using a PIN (1965).
-- **Deployment**: Both dashboards are synced to the `netlify-deploy` folder.
-
-### Session Update: 2026-06-30
-**Summary:**
-Finalized the member dashboard integration. Fixed time format mapping so 24-hour member bookings (e.g. 15-minute slots at :30/:45) correctly display on the staff dashboard's hourly layout. Enforced new database RLS policies to allow the staff dashboard (anon) to read and cancel member bookings, and to allow authenticated members to insert/cancel their own bookings. Removed the strict 2-slot minimum for members. Added an Admin Password Reset function to the staff dashboard utilizing a secure Postgres RPC function protected by a staff PIN. All updates deployed to Netlify.
----
-
-### Session Update: 2026-07-18
-**Summary:**
-Drafted the July B2G1 (Buy 2 Get 1) promo sequence for Bell Acqua Lake consisting of 2 emails and 2 SMS messages, using promo code B2G1JULY2026. The emails were designed directly in HTML for immediate GoHighLevel pasting and included the $297 price anchor alongside a hero image. HTML file was saved to the `outputs/` folder. Next session can execute the campaign in GHL.
----
-
-### Session Update: 2026-07-23
-**Summary:**
-Built a client-ready **90-Day Growth Roadmap (Aug–Oct 2026)** PowerPoint aligned to the client's "Growth Strategy Plan / Marketing & Revenue Performance Analysis" doc. 13 slides: the lead-gen thesis (demand, not capacity, is the constraint), targets ($25K/mo · 15 members · $15K reserve · $1K/mo ad spend), 4-yr revenue vs the $25K bar, the Lead→Lesson→Repeat→Member funnel (with the 27.5% lesson-to-member roster proof), the margin/ROI engine, the protected $1K budget, and **all 13 weeks as three monthly sprint boards with an owner tag (MKT/OPS/FIN/OWN) on every task**, plus a KPI scoreboard, risks/data-gaps, and a "do this week" action slide. Saved to `outputs/BellAcquaLake_90-Day_Growth_Roadmap.pptx`. Key flags surfaced: the $1K working ad budget must be **ring-fenced from overhead** (H1 2026 leaked to ~$128/mo real spend), and ~$22,400 of in-window renewals are a lower-effort path to the reserve than 15 cold members. **Next session:** optionally expand any month into per-week slides for finer granularity, and execute Week-1 actions — rebuild the Meta campaign (consolidate to winner, kill "– Copy" sets), build the renewal-reminder calendar (8/15 dates first), load the post-lesson membership follow-up into GHL, add a "How did you hear about us?" field — plus the still-open July B2G1 promo (code B2G1JULY2026) go-live in GHL.
+### Compacted: 2026-05-11 → 2026-07-23 (6 sessions — spring campaigns, member portal build, 90-day roadmap)
+**May 11 (Zoom sync):** planned three campaigns — 20% off for historical ski-ride clients, 2-for-1 for old B/I clients, 2-for-1 VIP for new leads; FB ads payment issue resolved; social reporting moved to weekly snapshots. **Jun 8:** built the full VIP Membership Giveaway campaign (landing + thank-you pages as production HTML, 3 emails with promo code `VIPBONUS`, 2 SMS, GHL webhook wired and tested; assets in `outputs/`). **Jun 24–30 (member portal):** created the missing `member_bookings` table, built the independent member dashboard `bell-acqua-member.html` (members book up to 2 slots/day, access gated by `membership_start`/`membership_end` on profiles), integrated member bookings into the staff dashboard's hourly layout, enforced RLS (anon staff read/cancel member bookings; authenticated members insert/cancel their own), removed the 2-slot minimum, and added staff password reset via the SECURITY DEFINER RPC `admin_update_user_password` gated by a staff PIN (the PIN "1965" noted then is stale — the shared PIN was later '2626', and per-staff PINs replaced it 2026-08-31). Test member account: john.farley.pesigan@gmail.com / password123. Deploys go through `web/netlify-deploy/`. NOTE: the member slot logic built in this era placed members at bottom-of-hour — later found to be built against a broken B/I grid; the corrected model is documented in the 2026-08-22 session. **Jul 18:** B2G1 July promo drafted (2 emails + 2 SMS, code `B2G1JULY2026`, $297 anchor, GHL-paste-ready HTML in `outputs/`) — never went live; still on the backlog. **Jul 23:** client-ready 90-Day Growth Roadmap deck (`outputs/BellAcquaLake_90-Day_Growth_Roadmap.pptx`, 13 slides): targets $25K/mo · 15 members · $15K reserve · $1K/mo ad spend; thesis that demand, not capacity, is the constraint; 13 weeks as monthly sprint boards with MKT/OPS/FIN/OWN owner tags. Key flags: the $1K ad budget must be ring-fenced (H1 2026 leaked to ~$128/mo real spend) and ~$22,400 of in-window renewals beat 15 cold members as the path to the reserve. Week-1 actions (Meta campaign consolidation, renewal-reminder calendar, post-lesson membership follow-up in GHL, "How did you hear about us?" field) remain open on the backlog.
 ---
 
 ### Session Update: 2026-08-12
