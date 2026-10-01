@@ -483,8 +483,15 @@ function buildBoatOptions(selected) {
   sel.innerHTML = '<option value="" disabled>Select boat…</option>'
     + known.map(b => `<option${b === selected ? ' selected' : ''}>${esc(b)}</option>`).join('')
     + '<option value="__other__">Other…</option>';
-  if (!selected) sel.value = known.length === 1 ? known[0] : '';
+  // New entries default to the boat used most recently, so Engine Hours — Start
+  // fills in straight away; editing keeps whatever was saved.
+  if (!selected) sel.value = known.length === 1 ? known[0] : (S.editing ? '' : (mostRecentBoat() || ''));
   onBoatChange();
+}
+function mostRecentBoat() {
+  let best = null;
+  Object.entries(S.lastStop || {}).forEach(([boat, v]) => { if (!best || v.key > best.key) best = { boat, key: v.key }; });
+  return best ? best.boat : (S.recentLog[0] && S.recentLog[0].boat) || null;
 }
 function onBoatChange() {
   document.getElementById('boatOtherWrap').style.display =
