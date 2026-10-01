@@ -701,6 +701,13 @@ async function checkAndConfirmBooking(bookingId, booking) {
       }
     );
 
+    // App email: booking confirmed (sent once per booking; the function dedupes)
+    fetch(`${WAIVER_CONFIG.SUPABASE_URL}/functions/v1/send-email`, {
+      method:  'POST',
+      headers: sbHeaders({ 'Content-Type': 'application/json' }),
+      body:    JSON.stringify({ event: 'booking_confirmed', booking_id: bookingId }),
+    }).catch(e => console.warn('app email', e));
+
     // If booking object wasn't passed (or is missing email), fetch it directly
     if (!booking || !booking.email) {
       const bRes = await fetch(

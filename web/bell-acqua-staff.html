@@ -310,6 +310,7 @@
   <button class="tab-btn" onclick="Dashboard.setTab('waivers')">📝 Waivers</button>
   <button class="tab-btn" onclick="Dashboard.setTab('staff')">🧑‍🏫 Staff</button>
   <button class="tab-btn" onclick="Dashboard.setTab('activity')">🕘 Activity</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('emails')">✉️ Emails</button>
   <button class="tab-btn" onclick="window.open('bell-acqua-boatlog.html','_blank')" title="Opens the Boat Log (BA Hours) in its own tab — kiosk-friendly for the iPad">🚤 Boat Log ↗</button>
 </div>
 
@@ -513,6 +514,28 @@
       </div>
       <div class="customers-table-wrap" id="activityGrid">
         <div class="loading-row"><div class="loading-spinner"></div> Loading activity…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Emails Tab ─── -->
+  <div class="tab-content" id="tab-emails">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div>
+          <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Email Log</div>
+          <div style="font-size:.78rem;color:var(--gray);margin-top:2px;">Every email the app sends from info@bellacqualakes.com. Newest first.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="emailSearch" type="text" placeholder="🔍 Search name, email, booking…"
+                 oninput="Dashboard.renderEmails()"
+                 style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:'Inter',sans-serif;min-width:240px;">
+          <button class="btn-outline-sm" onclick="Dashboard.sendTestEmail()">Send me a test</button>
+          <button class="btn-outline-sm" onclick="Dashboard.loadEmails()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="customers-table-wrap" id="emailsGrid">
+        <div class="loading-row"><div class="loading-spinner"></div> Loading emails…</div>
       </div>
     </div>
   </div>
@@ -1741,7 +1764,7 @@ const Dashboard = {
 
   setTab(tab){
     DS.activeTab=tab;
-    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers','staff','activity'][i]===tab));
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers','staff','activity','emails'][i]===tab));
     document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if(tab==='customers') renderCustomers();
@@ -1751,6 +1774,59 @@ const Dashboard = {
     if(tab==='waivers')   renderWaivers();
     if(tab==='staff')     renderStaffTab();
     if(tab==='activity')  renderActivity();
+    if(tab==='emails')    this.loadEmails();
+  },
+
+  /* ── Email log (app-sent transactional email) ── */
+  async loadEmails(){
+    const grid=document.getElementById('emailsGrid');
+    grid.innerHTML='<div class="loading-row"><div class="loading-spinner"></div> Loading emails…</div>';
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/email_log?select=*&order=created_at.desc&limit=300`,{headers:sbH()});
+      if(!r.ok) throw new Error(await r.text());
+      DS.emails=await r.json();
+    }catch(e){
+      DS.emails=null;
+      grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">Email log not set up yet — run migration <span style="font-family:monospace;">20261001_email_log.sql</span> in Supabase.</div></div>';
+      return;
+    }
+    this.renderEmails();
+  },
+  renderEmails(){
+    const grid=document.getElementById('emailsGrid');
+    if(!Array.isArray(DS.emails)) return;
+    const q=(document.getElementById('emailSearch')?.value||'').trim().toLowerCase();
+    const rows=DS.emails.filter(m=>!q||[m.to_email,m.to_name,m.subject,m.booking_id,m.event,m.status].some(v=>(v||'').toLowerCase().includes(q)));
+    if(!rows.length){ grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">No emails sent yet.</div></div>'; return; }
+    const label={waiver_request:'Sign your waiver',booking_confirmed:'Booking confirmed',test:'Test'};
+    const pill=s=>s==='sent'?'<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#e6f6ea;color:#1b6b33;">Sent</span>'
+      :s==='failed'?'<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecea;color:#8a1f11;">Failed</span>'
+      :`<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#eef2f6;color:#5f7484;">${s}</span>`;
+    grid.innerHTML=`<table class="customers-table" style="width:100%;border-collapse:collapse;font-size:.8rem;">
+      <thead><tr style="background:var(--navy-dark);color:white;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;">
+        <th style="padding:9px 12px;text-align:left;">When</th><th style="padding:9px 12px;text-align:left;">Email</th><th style="padding:9px 12px;text-align:left;">To</th><th style="padding:9px 12px;text-align:left;">Booking</th><th style="padding:9px 12px;text-align:left;">Status</th>
+      </tr></thead>
+      <tbody>${rows.map(m=>`<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:9px 12px;white-space:nowrap;color:var(--gray);">${new Date(m.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</td>
+        <td style="padding:9px 12px;"><div style="font-weight:700;color:var(--navy-dark);">${label[m.event]||m.event}</div><div style="font-size:.72rem;color:var(--gray);">${(m.subject||'').replace(/</g,'&lt;')}</div></td>
+        <td style="padding:9px 12px;"><div>${(m.to_name||'').replace(/</g,'&lt;')}</div><div style="font-size:.72rem;color:var(--gray);">${(m.to_email||'').replace(/</g,'&lt;')}</div></td>
+        <td style="padding:9px 12px;font-family:monospace;font-size:.75rem;">${m.booking_id||m.membership_id||''}</td>
+        <td style="padding:9px 12px;">${pill(m.status)}${m.error?`<div style="font-size:.7rem;color:#8a1f11;margin-top:3px;">${String(m.error).replace(/</g,'&lt;').slice(0,120)}</div>`:''}</td>
+      </tr>`).join('')}</tbody></table>`;
+  },
+  async sendTestEmail(){
+    const to=prompt('Send the test to which staff email? (must be an active staff member)', (DS.staffMe&&DS.staffMe.email)||'');
+    if(!to) return;
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
+        method:'POST',headers:sbH(),body:JSON.stringify({event:'test',to}),
+      });
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(d.error||`HTTP ${r.status}`);
+      const res=(d.results&&d.results[0])||{};
+      alert(res.status==='sent'?`✅ Test email sent to ${to}. Check the inbox.`:`❌ ${res.error||'Not sent'}`);
+    }catch(e){ alert(`❌ ${e.message}`); }
+    this.loadEmails();
   },
 
   selectDate(key){

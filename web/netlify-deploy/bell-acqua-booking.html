@@ -2517,6 +2517,9 @@ const App = {
             return new Date(yr, mo - 1, dy).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
           }).join(', ');
 
+          // App email: "please sign your waiver" to every skier (one call per booking)
+          AppEmail.send('waiver_request', { booking_id: state.bookingRef });
+
           if (GHL.isConfigured()) {
             try {
               for (const guest of guests) {
@@ -2637,6 +2640,7 @@ const App = {
       const bookingDateSummary = [...new Set(state.selectedSlots.map(s => s.date))].sort()
         .map(d => { const [yr,mo,dy]=d.split('-').map(Number); return new Date(yr,mo-1,dy).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); })
         .join(', ');
+      AppEmail.send('booking_confirmed', { booking_id: state.bookingRef });
       GHL.sendBookingConfirmedWebhook({
         bookingRef:  state.bookingRef,
         firstName:   state.party.firstName,
@@ -2698,6 +2702,20 @@ const App = {
  * GHL API v2 Helpers
  * Docs: https://highlevel.stoplight.io/docs/integrations/
  */
+/* ── App email (Resend via the send-email edge function) ─────────
+   Pages only report what happened; the function looks the booking up,
+   builds the email, sends it and logs it. Best-effort: never blocks the
+   booking flow. */
+const AppEmail = {
+  send(event, body) {
+    return fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': CONFIG.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ event, ...body }),
+    }).catch(e => console.warn('app email', event, e));
+  },
+};
+
 const GHL = {
   headers() {
     return {
@@ -2965,6 +2983,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const slotsSummary    = slots.map(s => `${s.date||''} · ${s.label||s.id}`).join(', ');
           const uniqueDatesWh   = [...new Set(slots.map(s => s.date).filter(Boolean))].sort();
           const bookingDateSummary = uniqueDatesWh.map(d => { const [yr,mo,dy]=d.split('-').map(Number); return new Date(yr,mo-1,dy).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }).join(', ');
+          AppEmail.send('booking_confirmed', { booking_id: booking.id });
           GHL.sendBookingConfirmedWebhook({
             bookingRef:  booking.id,
             firstName:   booking.first_name || '',
