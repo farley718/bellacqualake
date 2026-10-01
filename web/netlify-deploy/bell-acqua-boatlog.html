@@ -180,7 +180,7 @@
     <div class="modal-sub" id="modalSub"></div>
     <form id="entryForm" onsubmit="saveEntry(event)">
       <div class="form-grid">
-        <div class="field"><label>Name *</label><input type="text" id="fName" required/></div>
+        <div class="field"><label>Name *</label><input type="text" id="fName" required list="nameList" placeholder="Start typing a member name"/></div>
         <div class="field"><label>Guest</label><input type="text" id="fGuest" placeholder="Optional"/></div>
         <div class="field"><label>Date *</label><input type="date" id="fDate" required/></div>
         <div class="field"><label>Time</label><input type="time" id="fTime"/></div>
@@ -209,6 +209,7 @@
         <div class="field full"><label>Notes</label><textarea id="fNotes" placeholder="Optional"></textarea></div>
       </div>
       <datalist id="driverList"></datalist>
+      <datalist id="nameList"></datalist>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn-primary" id="btnSave">Save Entry</button>
@@ -234,6 +235,7 @@ const S = {
   rides:      [],       // ride cards for the day (from calendars)
   dayLog:     [],       // boat_log rows for selected date
   recentLog:  [],       // boat_log rows, recent across all dates
+  members:    [],       // member portal profiles (for the Name picker)
   view:       'day',
   editing:    null,     // boat_log row being edited (null = new)
   prefill:    null,     // ride card used to prefill a new entry
@@ -364,6 +366,7 @@ async function loadLog() {
     }
   }
   refreshDriverList();
+  refreshNameList();
   renderRides();   // logged state may have changed
   renderLog();
 }
@@ -471,6 +474,33 @@ function refreshDriverList() {
   const seen = new Set();
   S.recentLog.forEach(r => { if (r.driver) seen.add(r.driver); });
   document.getElementById('driverList').innerHTML = [...seen].map(d => `<option value="${esc(d)}">`).join('');
+}
+/* Name picker: every member on the portal roster (current members first, then
+   expired ones), plus any name already written in the log. Best-effort — the
+   form still accepts free text if the fetch fails. */
+async function loadMembers() {
+  try {
+    const rows = await sbGet('/rest/v1/profiles?select=first_name,last_name,membership_start,membership_end&order=last_name.asc,first_name.asc');
+    S.members = (rows || []).map(r => ({
+      name: `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+      end:  r.membership_end || null,
+    })).filter(m => m.name);
+  } catch (e) { S.members = []; }
+  refreshNameList();
+}
+function refreshNameList() {
+  const today = isoDate(getLADate());
+  const seen = new Set(), opts = [];
+  const add = (name, label) => {
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) return;
+    seen.add(key);
+    opts.push(`<option value="${esc(name)}"${label ? ` label="${esc(label)}"` : ''}>`);
+  };
+  S.members.filter(m => !m.end || m.end >= today).forEach(m => add(m.name, 'Member'));
+  S.members.filter(m => m.end && m.end < today).forEach(m => add(m.name, `Expired ${fmtDateShort(m.end)}`));
+  S.recentLog.forEach(r => add(r.person_name));
+  document.getElementById('nameList').innerHTML = opts.join('');
 }
 function autoQty() {
   const a = parseFloat(document.getElementById('fStart').value);
@@ -623,6 +653,7 @@ function showToast(msg, type = '') {
 (function () {
   S.date = isoDate(getLADate());
   document.getElementById('datePicker').value = S.date;
+  loadMembers();
   onDateChange();
 })();
 </script>
