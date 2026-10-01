@@ -98,6 +98,17 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(13,33,55,0.6); display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 20px; overflow-y: auto; }
     .modal-overlay.open { display: flex; }
     .modal-content { background: white; border-radius: 16px; width: 100%; max-width: 520px; padding: 26px 26px 22px; box-shadow: var(--shadow-md); margin: 20px 0 60px; }
+    .name-wrap { position: relative; }
+    .search-wrap { max-width: 360px; margin-bottom: 14px; }
+    .search-wrap .search-box { margin-bottom: 0; }
+    .search-wrap .name-sugg { top: calc(100% + 4px); }
+    .name-sugg { display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 60; background: white; border: 1.5px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); max-height: 240px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .name-sugg.open { display: block; }
+    .name-sugg div { padding: 12px 14px; font-size: .95rem; font-weight: 600; color: var(--navy-dark); border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .name-sugg div:last-child { border-bottom: none; }
+    .name-sugg div:hover, .name-sugg div:active { background: var(--gold-light); }
+    .name-sugg small { font-size: .7rem; font-weight: 600; color: var(--gray); white-space: nowrap; }
+    .name-sugg .none { color: var(--gray); font-weight: 500; cursor: default; }
     .modal-content h3 { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; color: var(--navy-dark); margin-bottom: 4px; }
     .modal-sub { font-size: .78rem; color: var(--gray); margin-bottom: 18px; }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -154,7 +165,10 @@
     Finished your ride? Tap your name to log the boat hours.
     <span class="hint">Green cards are already logged.</span>
   </div>
-  <input type="search" class="search-box" id="rideSearch" placeholder="🔍 Find your name…" oninput="renderRides()"/>
+  <div class="name-wrap search-wrap">
+    <input type="search" class="search-box" id="rideSearch" placeholder="🔍 Find your name…" autocomplete="off" autocorrect="off" autocapitalize="words" oninput="renderRides(); showSearchSugg()" onfocus="showSearchSugg()" onblur="hideSuggSoon('searchSugg')"/>
+    <div class="name-sugg" id="searchSugg"></div>
+  </div>
   <div id="ridesPanel"><div class="loading"><span class="spin">⟳</span> Loading rides…</div></div>
 
   <div class="log-card">
@@ -180,7 +194,7 @@
     <div class="modal-sub" id="modalSub"></div>
     <form id="entryForm" onsubmit="saveEntry(event)">
       <div class="form-grid">
-        <div class="field"><label>Name *</label><input type="text" id="fName" required list="nameList" placeholder="Start typing a member name"/></div>
+        <div class="field name-wrap"><label>Name *</label><input type="text" id="fName" required autocomplete="off" autocorrect="off" autocapitalize="words" placeholder="Tap to pick a member" onfocus="showNameSugg()" oninput="showNameSugg()" onblur="hideNameSuggSoon()"/><div class="name-sugg" id="nameSugg"></div></div>
         <div class="field"><label>Guest</label><input type="text" id="fGuest" placeholder="Optional"/></div>
         <div class="field"><label>Date *</label><input type="date" id="fDate" required/></div>
         <div class="field"><label>Time</label><input type="time" id="fTime"/></div>
@@ -209,7 +223,6 @@
         <div class="field full"><label>Notes</label><textarea id="fNotes" placeholder="Optional"></textarea></div>
       </div>
       <datalist id="driverList"></datalist>
-      <datalist id="nameList"></datalist>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn-primary" id="btnSave">Save Entry</button>
@@ -236,6 +249,7 @@ const S = {
   dayLog:     [],       // boat_log rows for selected date
   recentLog:  [],       // boat_log rows, recent across all dates
   members:    [],       // member portal profiles (for the Name picker)
+  nameOptions:[],       // built picker rows: {name, label}
   view:       'day',
   editing:    null,     // boat_log row being edited (null = new)
   prefill:    null,     // ride card used to prefill a new entry
@@ -378,8 +392,8 @@ function loggedRowForKey(slotKey) {
 
 function renderRides() {
   const panel = document.getElementById('ridesPanel');
-  const q = (document.getElementById('rideSearch').value || '').trim().toLowerCase();
-  const rides = S.rides.filter(r => !q || r.name.toLowerCase().includes(q));
+  const q = squash(document.getElementById('rideSearch').value);
+  const rides = S.rides.filter(r => !q || squash(r.name).includes(q));
 
   if (!rides.length) {
     panel.innerHTML = `<div class="rides-empty">${
@@ -495,12 +509,61 @@ function refreshNameList() {
     const key = name.toLowerCase();
     if (!name || seen.has(key)) return;
     seen.add(key);
-    opts.push(`<option value="${esc(name)}"${label ? ` label="${esc(label)}"` : ''}>`);
+    opts.push({ name, label: label || '' });
   };
   S.members.filter(m => !m.end || m.end >= today).forEach(m => add(m.name, 'Member'));
   S.members.filter(m => m.end && m.end < today).forEach(m => add(m.name, `Expired ${fmtDateShort(m.end)}`));
   S.recentLog.forEach(r => add(r.person_name));
-  document.getElementById('nameList').innerHTML = opts.join('');
+  S.nameOptions = opts;
+  if (document.getElementById('nameSugg').classList.contains('open')) showNameSugg();
+  if (document.getElementById('searchSugg').classList.contains('open')) showSearchSugg();
+}
+/* Our own suggestion list under the Name field — the browser's built-in
+   datalist is unreliable on iPad/phones. Matches ignore spaces and case,
+   so "john farley", "farley" and "JohnFarley" all find the same person. */
+const squash = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function buildSugg(inputId, boxId, pickFn, noneMsg) {
+  const box = document.getElementById(boxId);
+  const q = squash(document.getElementById(inputId).value);
+  const opts = (S.nameOptions || []).filter(o => !q || squash(o.name).includes(q));
+  box.innerHTML = opts.length
+    ? opts.map(o => `<div onpointerdown="${pickFn}(event, this)" data-name="${esc(o.name)}">${esc(o.name)}${o.label ? `<small>${esc(o.label)}</small>` : ''}</div>`).join('')
+    : `<div class="none">${noneMsg}</div>`;
+  box.classList.add('open');
+}
+function hideSuggSoon(boxId) {
+  setTimeout(() => document.getElementById(boxId).classList.remove('open'), 150);
+}
+/* Name field inside the entry form */
+function showNameSugg() { buildSugg('fName', 'nameSugg', 'pickName', 'No match — the name you typed will be saved as is'); }
+function pickName(ev, el) {
+  ev.preventDefault();
+  document.getElementById('fName').value = el.dataset.name;
+  document.getElementById('nameSugg').classList.remove('open');
+}
+function hideNameSuggSoon() { hideSuggSoon('nameSugg'); }
+/* "Find your name" box on the main page: pick a member → open their ride
+   card for today, or a Manual Entry with their name filled in if they
+   have no card. */
+function showSearchSugg() { buildSugg('rideSearch', 'searchSugg', 'pickSearchName', 'No member matches — use ＋ Manual Entry to log anyone else'); }
+function pickSearchName(ev, el) {
+  ev.preventDefault();
+  const name = el.dataset.name;
+  const input = document.getElementById('rideSearch');
+  document.getElementById('searchSugg').classList.remove('open');
+  const idx = S.rides.findIndex(r => squash(r.name.replace(/ \+\d+$/, '')) === squash(name));
+  if (idx >= 0) {            // they have a card today → open it (edit if already logged)
+    input.value = name; renderRides();
+    input.blur();
+    openRideEntry(idx);
+    return;
+  }
+  input.value = ''; renderRides();
+  input.blur();
+  openManualEntry();
+  document.getElementById('fName').value = name;
+  document.getElementById('nameSugg').classList.remove('open');
+  document.getElementById('fStart').focus();
 }
 function autoQty() {
   const a = parseFloat(document.getElementById('fStart').value);

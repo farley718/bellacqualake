@@ -2,7 +2,7 @@
 
 Compared Mike's **2025 MEMBER INFORMATION.xlsx** (In-House Member Info. by Name sheet) against the **GHL "members" contact export** (17 contacts), then loaded the current paid members into the member dashboard with their expiration dates.
 
-## Added to the member dashboard today (14)
+## Added to the member dashboard today (17)
 
 | Member | On Mike's sheet | In GHL export | Plan | Active from | Expires | Note |
 |---|---|---|---|---|---|---|
@@ -23,15 +23,15 @@ Compared Mike's **2025 MEMBER INFORMATION.xlsx** (In-House Member Info. by Name 
 
 Mike Todd was already in the dashboard (through 2030).
 
-## Paid members I could NOT add — no email on file (3)
+## Added with a placeholder email — no real email on file (3)
 
-| Member | Plan | Active from | Expires |
-|---|---|---|---|
-| Lynea Blomgren | Full-Time Unlimited (Stripe) | 2026-06-01 | 2027-05-31 |
-| Stephanie Parsons | Mid-Week (Stripe) | 2026-08-17 | 2027-08-17 |
-| Lake Lutes | (Stripe, with Todd Lutes) | 2026-07-05 | 2027-07-05 |
+| Member | Plan | Active from | Expires | Placeholder email |
+|---|---|---|---|---|
+| Lynea Blomgren | Full-Time Unlimited (Stripe) | 2026-06-01 | 2027-05-31 | lynea.blomgren@placeholder.bellacqualake.com |
+| Stephanie Parsons | Mid-Week (Stripe) | 2026-08-17 | 2027-08-17 | stephanie.parsons@placeholder.bellacqualake.com |
+| Lake Lutes | (Stripe, with Todd Lutes) | 2026-07-05 | 2027-07-05 | lake.lutes@placeholder.bellacqualake.com |
 
-Send me their emails and I will add them.
+They show in the dashboard and the Boat Log picker now. They cannot log in until the placeholder is swapped for a real email (send it to John, or edit the user in Supabase Auth).
 
 ## Needs your call — the two lists disagree (6)
 
