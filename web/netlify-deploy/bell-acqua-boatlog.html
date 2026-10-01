@@ -115,6 +115,7 @@
     .form-grid .full { grid-column: 1 / -1; }
     @media(max-width: 480px){ .form-grid { grid-template-columns: 1fr; } .form-grid .full { grid-column: auto; } }
     .field label { display: block; font-size: .74rem; font-weight: 700; color: #374151; margin-bottom: 5px; }
+    .field-hint { font-size: .7rem; color: var(--gray); margin-top: 4px; min-height: 12px; }
     .field input, .field select, .field textarea {
       width: 100%; padding: 12px 13px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
       font-size: 1rem; font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s; background: white;
@@ -216,13 +217,15 @@
         <div class="field full" id="boatOtherWrap" style="display:none;">
           <label>Boat Name</label><input type="text" id="fBoatOther" placeholder="Enter boat name"/>
         </div>
-        <div class="field"><label>Engine Hours — Start</label><input type="number" id="fStart" step="0.1" inputmode="decimal" placeholder="e.g. 1221.6" oninput="autoQty()"/></div>
+        <div class="field"><label>Engine Hours — Start</label><input type="number" id="fStart" step="0.1" inputmode="decimal" placeholder="e.g. 1221.6" oninput="autoQty(); S.autoStart = null"/><div class="field-hint" id="startHint"></div></div>
         <div class="field"><label>Engine Hours — Stop</label><input type="number" id="fStop" step="0.1" inputmode="decimal" placeholder="e.g. 1222.1" oninput="autoQty()"/></div>
         <div class="field"><label>Hours Used (qty)</label><input type="number" id="fHours" step="0.1" inputmode="decimal" placeholder="Auto"/></div>
-        <div class="field"><label>Coach / Driver *</label><input type="text" id="fDriver" required list="driverList" placeholder="Who drove?"/></div>
+        <div class="field"><label>Driver *</label><input type="text" id="fDriver" required list="driverList" placeholder="Who drove the boat?"/></div>
+        <div class="field"><label>Coach</label><input type="text" id="fCoach" list="coachList" placeholder="Optional"/></div>
         <div class="field full"><label>Notes</label><textarea id="fNotes" placeholder="Optional"></textarea></div>
       </div>
       <datalist id="driverList"></datalist>
+      <datalist id="coachList"></datalist>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn-primary" id="btnSave">Save Entry</button>
@@ -250,6 +253,8 @@ const S = {
   recentLog:  [],       // boat_log rows, recent across all dates
   members:    [],       // member portal profiles (for the Name picker)
   nameOptions:[],       // built picker rows: {name, label}
+  lastStop:   {},       // boat → engine_stop of the most recent log entry for that boat
+  autoStart:  null,     // value we auto-filled into Engine Hours Start (so we only overwrite our own fill)
   view:       'day',
   editing:    null,     // boat_log row being edited (null = new)
   prefill:    null,     // ride card used to prefill a new entry
@@ -449,7 +454,7 @@ function renderLog() {
   wrap.innerHTML = `<table>
     <thead><tr>
       <th>Date</th><th>Time</th><th>Name</th><th>Guest</th><th>Boat</th>
-      <th>Start</th><th>Stop</th><th>Qty</th><th>Activity</th><th>Driver</th><th>Notes</th>
+      <th>Start</th><th>Stop</th><th>Qty</th><th>Activity</th><th>Driver</th><th>Coach</th><th>Notes</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr onclick="editLogRow('${r.id}')" title="Tap to edit">
       <td class="td-num">${fmtDateShort(r.log_date)}</td>
@@ -462,6 +467,7 @@ function renderLog() {
       <td class="td-num"><strong>${r.hours ?? ''}</strong></td>
       <td>${esc(r.activity || '')}</td>
       <td>${esc(r.driver || '')}</td>
+      <td>${esc(r.coach || '')}</td>
       <td style="max-width:220px;">${esc(r.notes || '')}</td>
     </tr>`).join('')}</tbody>
   </table>`;
@@ -483,11 +489,47 @@ function buildBoatOptions(selected) {
 function onBoatChange() {
   document.getElementById('boatOtherWrap').style.display =
     document.getElementById('fBoat').value === '__other__' ? 'block' : 'none';
+  prefillStart();
 }
 function refreshDriverList() {
-  const seen = new Set();
-  S.recentLog.forEach(r => { if (r.driver) seen.add(r.driver); });
-  document.getElementById('driverList').innerHTML = [...seen].map(d => `<option value="${esc(d)}">`).join('');
+  const drivers = new Set(), coaches = new Set();
+  S.recentLog.forEach(r => { if (r.driver) drivers.add(r.driver); if (r.coach) coaches.add(r.coach); });
+  document.getElementById('driverList').innerHTML = [...drivers].map(d => `<option value="${esc(d)}">`).join('');
+  document.getElementById('coachList').innerHTML  = [...coaches].map(d => `<option value="${esc(d)}">`).join('');
+  refreshLastStop();
+}
+/* Per-boat odometer: the Engine Hours — Stop of the most recent entry for
+   each boat (by ride date/time, then when it was saved). */
+function refreshLastStop() {
+  const best = {};
+  S.recentLog.forEach(r => {
+    if (!r.boat || r.engine_stop == null) return;
+    const key = `${r.log_date} ${(r.ride_time || '00:00:00')} ${r.created_at || ''}`;
+    if (!best[r.boat] || key > best[r.boat].key) best[r.boat] = { key, stop: Number(r.engine_stop), date: r.log_date, name: r.person_name };
+  });
+  S.lastStop = best;
+}
+/* New entries only: fill Engine Hours — Start from the boat's last Stop.
+   Stays editable; we only overwrite a value we filled in ourselves. */
+function prefillStart() {
+  if (S.editing) return;
+  const startEl = document.getElementById('fStart'), hint = document.getElementById('startHint');
+  let boat = document.getElementById('fBoat').value;
+  if (boat === '__other__') boat = document.getElementById('fBoatOther').value.trim();
+  const last = boat ? S.lastStop[boat] : null;
+  const cur = startEl.value;
+  const ours = cur === '' || (S.autoStart !== null && Number(cur) === S.autoStart);
+  if (last && ours) {
+    startEl.value = last.stop.toFixed(1);
+    S.autoStart = last.stop;
+    autoQty();
+  } else if (!last && ours && cur !== '') {
+    startEl.value = '';          // our fill came from another boat — don't carry it over
+    S.autoStart = null;
+  }
+  hint.textContent = last
+    ? `Last stop on this boat: ${last.stop.toFixed(1)} (${fmtDateShort(last.date)}, ${last.name})`
+    : (boat ? 'No previous entry for this boat.' : '');
 }
 /* Name picker: every member on the portal roster (current members first, then
    expired ones), plus any name already written in the log. Best-effort — the
@@ -596,7 +638,11 @@ function fillForm(v) {
   document.getElementById('fStop').value     = v.engine_stop ?? '';
   document.getElementById('fHours').value    = v.hours ?? '';
   document.getElementById('fDriver').value   = v.driver || '';
+  document.getElementById('fCoach').value    = v.coach || '';
   document.getElementById('fNotes').value    = v.notes || '';
+  S.autoStart = null;
+  document.getElementById('startHint').textContent = '';
+  prefillStart();
 }
 
 function openRideEntry(idx) {
@@ -648,16 +694,29 @@ async function saveEntry(e) {
     engine_stop:  num('fStop'),
     hours:        num('fHours'),
     driver:      document.getElementById('fDriver').value.trim(),
+    coach:       document.getElementById('fCoach').value.trim() || null,
     notes:       document.getElementById('fNotes').value.trim() || null,
     updated_at:  new Date().toISOString(),
   };
   if (!payload.boat) { showToast('Please select a boat.', 'error'); btn.disabled = false; btn.textContent = 'Save Entry'; return; }
 
+  // If the `coach` column hasn't been added yet (migration 20261001_boat_log_coach.sql),
+  // save everything else rather than losing the entry, and say so.
+  const send = async (method, url, body) => {
+    let r = await fetch(url, { method, headers: hdrs(), body: JSON.stringify(body) });
+    if (!r.ok && r.status === 400 && 'coach' in body) {
+      const t = await r.clone().text();
+      if (/coach/.test(t)) {
+        const { coach, ...rest } = body;
+        r = await fetch(url, { method, headers: hdrs(), body: JSON.stringify(rest) });
+        if (r.ok && coach) showToast('Saved without Coach — the coach column is not set up yet.', 'error');
+      }
+    }
+    return r;
+  };
   try {
     if (S.editing) {
-      const r = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/boat_log?id=eq.${S.editing.id}`, {
-        method: 'PATCH', headers: hdrs(), body: JSON.stringify(payload),
-      });
+      const r = await send('PATCH', `${CONFIG.SUPABASE_URL}/rest/v1/boat_log?id=eq.${S.editing.id}`, payload);
       if (!r.ok) throw new Error(await r.text());
     } else {
       if (S.prefill) {
@@ -667,9 +726,7 @@ async function saveEntry(e) {
       } else {
         payload.booking_source = 'manual';
       }
-      const r = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/boat_log`, {
-        method: 'POST', headers: hdrs(), body: JSON.stringify(payload),
-      });
+      const r = await send('POST', `${CONFIG.SUPABASE_URL}/rest/v1/boat_log`, payload);
       if (!r.ok) {
         const txt = await r.text();
         if (r.status === 409) throw new Error('This ride was already logged — refresh and tap the green card to edit it.');
@@ -690,8 +747,8 @@ async function saveEntry(e) {
 function exportCsv() {
   const rows = visibleRows();
   if (!rows.length) { showToast('Nothing to export', 'error'); return; }
-  const cols = ['log_date','ride_time','person_name','guest_name','boat','engine_start','engine_stop','hours','activity','driver','notes'];
-  const head = ['Date','Time','Name','Guest','Boat','Start','Stop','Qty','Activity','Driver','Notes'];
+  const cols = ['log_date','ride_time','person_name','guest_name','boat','engine_start','engine_stop','hours','activity','driver','coach','notes'];
+  const head = ['Date','Time','Name','Guest','Boat','Start','Stop','Qty','Activity','Driver','Coach','Notes'];
   const csv = [head.join(',')].concat(rows.map(r =>
     cols.map(c => { const v = r[c] == null ? '' : String(r[c]); return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; }).join(',')
   )).join('\n');

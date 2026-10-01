@@ -518,10 +518,14 @@ function prefillStart() {
   if (boat === '__other__') boat = document.getElementById('fBoatOther').value.trim();
   const last = boat ? S.lastStop[boat] : null;
   const cur = startEl.value;
-  if (last && (cur === '' || (S.autoStart !== null && Number(cur) === S.autoStart))) {
+  const ours = cur === '' || (S.autoStart !== null && Number(cur) === S.autoStart);
+  if (last && ours) {
     startEl.value = last.stop.toFixed(1);
     S.autoStart = last.stop;
     autoQty();
+  } else if (!last && ours && cur !== '') {
+    startEl.value = '';          // our fill came from another boat — don't carry it over
+    S.autoStart = null;
   }
   hint.textContent = last
     ? `Last stop on this boat: ${last.stop.toFixed(1)} (${fmtDateShort(last.date)}, ${last.name})`
