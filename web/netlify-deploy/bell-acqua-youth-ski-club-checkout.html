@@ -572,6 +572,12 @@ async function recordRegistration(piId){
     }
   }catch(e){ console.error('Registration row failed (payment DID succeed):', e, row); }
 
+  /* App email: registration receipt to the parent + staff "new registration". */
+  fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
+    method:'POST', headers:sbH(),
+    body:JSON.stringify({event:'ysc_paid', registration_id:S.regId}),
+  }).catch(()=>{});
+
   /* Hand off to GoHighLevel for the receipt, welcome guide and tagging. */
   try{
     const payload = {

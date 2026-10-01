@@ -2424,6 +2424,7 @@ const App = {
             const rec = recRes.ok ? await recRes.json() : null;
             if (rec && rec.ok) {
               // Notify the affiliate their credit is ready (best-effort)
+              AppEmail.send('affiliate_credit', { booking_id: state.bookingRef });
               GHL.sendAffiliateCreditEmail({
                 affiliateName:    rec.affiliate_name,
                 affiliateEmail:   rec.affiliate_email,
@@ -2517,7 +2518,9 @@ const App = {
             return new Date(yr, mo - 1, dy).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
           }).join(', ');
 
-          // App email: "please sign your waiver" to every skier (one call per booking)
+          // App email: payment receipt to the booker (+ staff "new booking"), then
+          // "please sign your waiver" to every skier (one call per booking)
+          AppEmail.send('booking_receipt', { booking_id: state.bookingRef });
           AppEmail.send('waiver_request', { booking_id: state.bookingRef });
 
           if (GHL.isConfigured()) {

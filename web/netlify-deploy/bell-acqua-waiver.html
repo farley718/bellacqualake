@@ -1120,6 +1120,14 @@ function generateWaiverPDF({ record, address, city, stateVal, postalCode, phone,
 
 
 async function notifyStaff({ record, pdfUrl, booking }) {
+  // App email: staff "waiver signed" with the PDF link (the function finds the booking/membership itself)
+  if (record && record.token) {
+    fetch(`${WAIVER_CONFIG.SUPABASE_URL}/functions/v1/send-email`, {
+      method:  'POST',
+      headers: sbHeaders(),
+      body:    JSON.stringify({ event: 'waiver_signed', token: record.token }),
+    }).catch(() => {});
+  }
   if (!WAIVER_CONFIG.STAFF_NOTIFICATION_WEBHOOK_URL ||
       WAIVER_CONFIG.STAFF_NOTIFICATION_WEBHOOK_URL.includes('YOUR_')) {
     console.warn('STAFF_NOTIFICATION_WEBHOOK_URL not set — skipping staff notification');
@@ -1519,6 +1527,14 @@ const WaiverApp = {
       let membershipResult = null;
       if (membershipId) {
         membershipResult = await checkAndActivateMembership(membershipId);
+        // App email: "you're active" + portal link once the last waiver is in
+        if (membershipResult && membershipResult.activated) {
+          fetch(`${WAIVER_CONFIG.SUPABASE_URL}/functions/v1/send-email`, {
+            method:  'POST',
+            headers: sbHeaders(),
+            body:    JSON.stringify({ event: 'membership_active', membership_id: membershipId }),
+          }).catch(() => {});
+        }
       }
 
       // Determine first name for thank you message

@@ -532,8 +532,42 @@
                  style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:'Inter',sans-serif;min-width:240px;">
           <select id="emailSampleSel" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.8rem;font-family:'Inter',sans-serif;">
             <option value="">Connection test</option>
-            <option value="waiver_request">Sample: Sign your waiver</option>
-            <option value="booking_confirmed">Sample: Booking confirmed</option>
+            <optgroup label="Lessons &amp; ski rides">
+              <option value="booking_receipt">Payment received (receipt)</option>
+              <option value="waiver_request">Sign your waiver</option>
+              <option value="booking_confirmed">Booking confirmed</option>
+              <option value="booking_changed">Booking rescheduled / changed</option>
+              <option value="booking_reminder">Reminder: tomorrow</option>
+            </optgroup>
+            <optgroup label="Members">
+              <option value="member_booking">Ride booked</option>
+              <option value="member_booking_cancelled">Ride cancelled</option>
+              <option value="member_reminder">Reminder: ride tomorrow</option>
+              <option value="membership_welcome">Membership welcome + waiver</option>
+              <option value="membership_waiver_request">Supplementary member waiver</option>
+              <option value="membership_active">Membership active (portal open)</option>
+              <option value="installment_receipt">Installment receipt</option>
+              <option value="installment_failed">Installment failed</option>
+              <option value="membership_expiring">Membership expiring (30 / 7 days)</option>
+            </optgroup>
+            <optgroup label="Referrals &amp; youth club">
+              <option value="affiliate_credit">Affiliate credit earned</option>
+              <option value="ysc_paid">Youth Ski Club registered</option>
+              <option value="ysc_nurture_1">YSC nurture 1: spot held</option>
+              <option value="ysc_nurture_2">YSC nurture 2: a session</option>
+              <option value="ysc_nurture_3">YSC nurture 3: parent questions</option>
+              <option value="ysc_nurture_4">YSC nurture 4: what $2,000 buys</option>
+              <option value="ysc_nurture_5">YSC nurture 5: last call</option>
+            </optgroup>
+            <optgroup label="Staff notifications">
+              <option value="staff_new_booking">Staff: new booking</option>
+              <option value="staff_booking_changed">Staff: booking changed</option>
+              <option value="staff_waiver_signed">Staff: waiver signed</option>
+              <option value="staff_member_booking">Staff: member ride</option>
+              <option value="staff_new_membership">Staff: new membership</option>
+              <option value="staff_ysc_paid">Staff: youth club registration</option>
+              <option value="staff_installment_failed">Staff: installment failed</option>
+            </optgroup>
           </select>
           <button class="btn-outline-sm" onclick="Dashboard.sendTestEmail()">Send to me</button>
           <button class="btn-outline-sm" onclick="Dashboard.loadEmails()">↻ Refresh</button>
@@ -1803,7 +1837,12 @@ const Dashboard = {
     const q=(document.getElementById('emailSearch')?.value||'').trim().toLowerCase();
     const rows=DS.emails.filter(m=>!q||[m.to_email,m.to_name,m.subject,m.booking_id,m.event,m.status].some(v=>(v||'').toLowerCase().includes(q)));
     if(!rows.length){ grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">No emails sent yet.</div></div>'; return; }
-    const label={waiver_request:'Sign your waiver',booking_confirmed:'Booking confirmed',test:'Test'};
+    const label={booking_receipt:'Payment received',waiver_request:'Sign your waiver',booking_confirmed:'Booking confirmed',booking_changed:'Booking changed',booking_reminder:'Reminder: tomorrow',
+      member_booking_created:'Ride booked',member_booking_cancelled:'Ride cancelled',member_reminder:'Reminder: ride tomorrow',
+      membership_welcome:'Membership welcome',membership_waiver_request:'Member waiver request',membership_active:'Membership active',installment_receipt:'Installment receipt',installment_failed:'Installment failed',membership_expiring:'Membership expiring',
+      affiliate_credit:'Affiliate credit',ysc_paid:'Youth club registered',ysc_nurture:'Youth club nurture',
+      staff_new_booking:'Staff: new booking',staff_booking_changed:'Staff: booking changed',staff_waiver_signed:'Staff: waiver signed',staff_member_booking:'Staff: member ride',staff_new_membership:'Staff: new membership',staff_ysc_paid:'Staff: youth club',staff_installment_failed:'Staff: installment failed',
+      test:'Connection test',preview:'Sample'};
     const pill=s=>s==='sent'?'<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#e6f6ea;color:#1b6b33;">Sent</span>'
       :s==='failed'?'<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecea;color:#8a1f11;">Failed</span>'
       :`<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#eef2f6;color:#5f7484;">${s}</span>`;

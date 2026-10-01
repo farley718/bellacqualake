@@ -757,6 +757,12 @@ const App = {
       }
     }catch(e){ console.error('waiver_requests insert error:',e); S.waiverError=true; }
     S.activated={ok:false,pending_waivers:S.waivers.length};
+    // App email: welcome + contract summary to the member, waiver link to each
+    // supplementary member, "new membership" to staff
+    fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
+      method:'POST',headers:sbH(),
+      body:JSON.stringify({event:'membership_welcome',membership_id:S.membershipId}),
+    }).catch(()=>{});
 
     // Welcome email via GHL (skipped until the webhook URL is configured)
     if(CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL&&!CONFIG.GHL_MEMBERSHIP_WEBHOOK_URL.includes('YOUR_')){

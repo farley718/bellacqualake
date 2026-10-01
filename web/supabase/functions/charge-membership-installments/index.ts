@@ -28,6 +28,19 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+/* App email (send-email edge function): receipt on success, notice on failure.
+   Best-effort — a mail problem never blocks or re-runs a charge. */
+async function appEmail(body: Record<string, unknown>) {
+  try {
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` },
+      body: JSON.stringify(body),
+    });
+  } catch (e) { console.warn("appEmail failed:", e); }
+}
+
 Deno.serve(async (req) => {
   // Only the cron job (or staff with the secret) may trigger charges
   const cronSecret = Deno.env.get("CRON_SECRET");
@@ -95,6 +108,7 @@ Deno.serve(async (req) => {
 
       results.charged++;
       results.details.push(`${m.id} #${pay.seq}: charged $${pay.amount}`);
+      await appEmail({ event: "installment_receipt", payment_id: pay.id });
     } catch (e) {
       const msg = e?.raw?.message ?? e?.message ?? "charge failed";
       results.failed++;
@@ -102,6 +116,7 @@ Deno.serve(async (req) => {
       await supabase.from("membership_payments")
         .update({ note: `Auto-charge failed ${today}: ${msg}` })
         .eq("id", pay.id);
+      await appEmail({ event: "installment_failed", payment_id: pay.id, reason: msg });
     }
   }
 

@@ -731,6 +731,13 @@ async function doCancel(){
 
 /* ── WEBHOOK ── */
 async function sendWebhook(type,extra){
+  // App email: customer + staff notice for reschedule / added sessions / party size / cancellation
+  try{
+    fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
+      method:'POST', headers:sbH(),
+      body:JSON.stringify({event:'booking_changed', booking_id:S.booking.id, change:type, details:extra||{}}),
+    }).catch(()=>{});
+  }catch(e){}
   if(!CONFIG.MODIFICATION_WEBHOOK_URL) return;
   const b=S.booking;
   try{

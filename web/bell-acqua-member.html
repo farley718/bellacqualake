@@ -767,6 +767,7 @@ async function confirmPendingSlots() {
     : (md.full_name || S.user.email);
     
   let successCount = 0;
+  const createdIds = [];
   for (const start of slotsToBook) {
     const end = generateSlots().find(s => s.start === start)?.end;
     if (!end) continue;
@@ -782,6 +783,7 @@ async function confirmPendingSlots() {
       };
       const [result] = await sbPost('/rest/v1/member_bookings', payload);
       notifyWebhook({ ...payload, booking_id: result.id, event: 'member_booking_created' });
+      createdIds.push(result.id);
       successCount++;
     } catch (ex) {
       console.error(ex);
@@ -789,6 +791,8 @@ async function confirmPendingSlots() {
   }
   
   S.pendingSlots = [];
+  // App email: one "ride booked" email covering every slot just booked (+ staff copy)
+  if (createdIds.length) appEmail({ event: 'member_booking', action: 'created', booking_ids: createdIds });
   if (successCount === slotsToBook.length) {
     showToast('Bookings confirmed!', 'success');
   } else {
@@ -866,7 +870,18 @@ async function cancelFromList(id, date, slotStart) {
 }
 
 /* ── WEBHOOK ───────────────────────────────────────────────── */
+/* App email (Resend via the send-email edge function). Best-effort. */
+function appEmail(body) {
+  fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`, {
+    method:  'POST',
+    headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${S.token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  }).catch(() => {});
+}
 function notifyWebhook(payload) {
+  if (payload && payload.event === 'member_booking_cancelled' && payload.booking_id) {
+    appEmail({ event: 'member_booking', action: 'cancelled', booking_id: payload.booking_id });
+  }
   fetch(CONFIG.NOTIFY_URL, {
     method:  'POST',
     headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${S.token}`, 'Content-Type': 'application/json' },
