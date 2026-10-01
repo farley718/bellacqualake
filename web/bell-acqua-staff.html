@@ -530,7 +530,12 @@
           <input id="emailSearch" type="text" placeholder="🔍 Search name, email, booking…"
                  oninput="Dashboard.renderEmails()"
                  style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:'Inter',sans-serif;min-width:240px;">
-          <button class="btn-outline-sm" onclick="Dashboard.sendTestEmail()">Send me a test</button>
+          <select id="emailSampleSel" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.8rem;font-family:'Inter',sans-serif;">
+            <option value="">Connection test</option>
+            <option value="waiver_request">Sample: Sign your waiver</option>
+            <option value="booking_confirmed">Sample: Booking confirmed</option>
+          </select>
+          <button class="btn-outline-sm" onclick="Dashboard.sendTestEmail()">Send to me</button>
           <button class="btn-outline-sm" onclick="Dashboard.loadEmails()">↻ Refresh</button>
         </div>
       </div>
@@ -1815,11 +1820,12 @@ const Dashboard = {
       </tr>`).join('')}</tbody></table>`;
   },
   async sendTestEmail(){
-    const to=prompt('Send the test to which staff email? (must be an active staff member)', (DS.staffMe&&DS.staffMe.email)||'');
+    const template=document.getElementById('emailSampleSel')?.value||'';
+    const to=prompt('Send it to which staff email? (must be an active staff member)', (DS.staffMe&&DS.staffMe.email)||'');
     if(!to) return;
     try{
       const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
-        method:'POST',headers:sbH(),body:JSON.stringify({event:'test',to}),
+        method:'POST',headers:sbH(),body:JSON.stringify(template?{event:'preview',template,to}:{event:'test',to}),
       });
       const d=await r.json().catch(()=>({}));
       if(!r.ok) throw new Error(d.error||`HTTP ${r.status}`);

@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       case "waiver_request":    return json(await waiverRequest(body));
       case "booking_confirmed": return json(await bookingConfirmed(body));
       case "test":              return json(await testEmail(body));
+      case "preview":           return json(await previewEmail(body));
       default:                  return json({ error: `Unknown event "${event}"` }, 400);
     }
   } catch (e) {
@@ -79,23 +80,8 @@ async function waiverRequest(body: Record<string, unknown>) {
       results.push({ guest: w.guest_name, status: "skipped", reason: "sent in last 10 min" }); continue;
     }
     const waiverUrl = `${BASE}/bell-acqua-waiver.html?token=${encodeURIComponent(w.token)}`;
-    const isPrimary = (w.guest_email || "").toLowerCase() === (booking.email || "").toLowerCase();
-    const first = firstName(w.guest_name) || booking.first_name || "there";
-    const subject = `Please sign your waiver — Bell Acqua Lake, ${shortDate(booking)}`;
-    const html = layout({
-      title: "One quick step before you ski",
-      preheader: `Sign your waiver for ${bookingLabel(booking)} on ${shortDate(booking)}.`,
-      body: `
-        <p>Hi ${esc(first)},</p>
-        <p>${isPrimary ? "Thanks for booking with us!" : `${esc(booking.first_name)} ${esc(booking.last_name)} has booked you in for a ride with us.`}
-        Every skier signs our safety waiver online before their time on the water. It takes about two minutes.</p>
-        ${summaryTable(booking)}
-        ${button("Sign my waiver", waiverUrl)}
-        <p class="muted">The link is personal to you. If you're signing for a minor, you'll be able to add their name on the form.</p>
-        ${isPrimary ? `<p class="muted">Need to change your time? <a href="${manageUrl(booking)}">Manage your booking</a>.</p>` : ""}`,
-      text: `Hi ${first},\n\nPlease sign your safety waiver before your ${bookingLabel(booking)} on ${shortDate(booking)}:\n${waiverUrl}\n\n${summaryText(booking)}\n\nQuestions? Reply to this email or call ${PHONE}.`,
-    });
-    results.push(await send({ event: "waiver_request", to: w.guest_email, toName: w.guest_name, subject, html: html.html, text: html.text, bookingId, meta: { guest_index: w.guest_index } }));
+    const m = renderWaiverRequest(booking, w.guest_name, w.guest_email, waiverUrl);
+    results.push(await send({ event: "waiver_request", to: w.guest_email, toName: w.guest_name, ...m, bookingId, meta: { guest_index: w.guest_index } }));
   }
   return { ok: true, results };
 }
@@ -108,9 +94,61 @@ async function bookingConfirmed(body: Record<string, unknown>) {
   if (!body.force && await sentEver("booking_confirmed", bookingId, booking.email)) {
     return { ok: true, results: [{ status: "skipped", reason: "already sent for this booking" }] };
   }
+  const m = renderBookingConfirmed(booking);
+  const r = await send({ event: "booking_confirmed", to: booking.email, toName: `${booking.first_name ?? ""} ${booking.last_name ?? ""}`.trim(), ...m, bookingId });
+  return { ok: true, results: [r] };
+}
+
+/* Send a sample of any template to an active staff member, using made-up
+   booking data. Lets staff see every email before (and after) it goes live. */
+async function previewEmail(body: Record<string, unknown>) {
+  const to = String(body.to ?? "").trim().toLowerCase();
+  const template = String(body.template ?? "");
+  if (!to) throw new Error("to required");
+  const { data: staff } = await db.from("staff_members").select("id, name").eq("is_active", true).ilike("email", to).limit(1);
+  if (!staff || !staff.length) throw new Error("Samples can only go to an active staff member's address.");
+  const sample: Booking = {
+    id: "BAL-SAMPLE1", email: to, first_name: firstName(staff[0].name) || "Sam", last_name: "Sample",
+    party_size: 2, booking_type: "ski_ride_lesson", total_amount: 150, status: "confirmed",
+    slots: [{ id: "2026-10-18__1000", date: "2026-10-18", label: "10:00 AM – 10:15 AM" }, { id: "2026-10-18__1015", date: "2026-10-18", label: "10:15 AM – 10:30 AM" }],
+  };
+  let m: { subject: string; html: string; text: string };
+  switch (template) {
+    case "waiver_request":    m = renderWaiverRequest(sample, `${sample.first_name} ${sample.last_name}`, to, `${BASE}/bell-acqua-waiver.html?token=SAMPLE`); break;
+    case "booking_confirmed": m = renderBookingConfirmed(sample); break;
+    default: throw new Error(`Unknown template "${template}". Available: waiver_request, booking_confirmed`);
+  }
+  m.subject = `[SAMPLE] ${m.subject}`;
+  const r = await send({ event: "preview", to, toName: staff[0].name, ...m, meta: { template } });
+  return { ok: true, results: [r] };
+}
+
+/* ── templates ────────────────────────────────────────────── */
+
+function renderWaiverRequest(booking: Booking, guestName: string, guestEmail: string, waiverUrl: string) {
+  const isPrimary = (guestEmail || "").toLowerCase() === (booking.email || "").toLowerCase();
+  const first = firstName(guestName) || booking.first_name || "there";
+  const subject = `Please sign your waiver — Bell Acqua Lake, ${shortDate(booking)}`;
+  const { html, text } = layout({
+    title: "One quick step before you ski",
+    preheader: `Sign your waiver for ${bookingLabel(booking)} on ${shortDate(booking)}.`,
+    body: `
+      <p>Hi ${esc(first)},</p>
+      <p>${isPrimary ? "Thanks for booking with us!" : `${esc(booking.first_name)} ${esc(booking.last_name)} has booked you in for a ride with us.`}
+      Every skier signs our safety waiver online before their time on the water. It takes about two minutes.</p>
+      ${summaryTable(booking)}
+      ${button("Sign my waiver", waiverUrl)}
+      <p class="muted">The link is personal to you. If you're signing for a minor, you'll be able to add their name on the form.</p>
+      ${isPrimary ? `<p class="muted">Need to change your time? <a href="${manageUrl(booking)}">Manage your booking</a>.</p>` : ""}`,
+    text: `Hi ${first},\n\nPlease sign your safety waiver before your ${bookingLabel(booking)} on ${shortDate(booking)}:\n${waiverUrl}\n\n${summaryText(booking)}\n\nQuestions? Reply to this email or call ${PHONE}.`,
+  });
+  return { subject, html, text };
+}
+
+function renderBookingConfirmed(booking: Booking) {
   const first = booking.first_name || "there";
   const subject = `You're confirmed — ${bookingLabel(booking)}, ${shortDate(booking)}`;
-  const html = layout({
+  const { html, text } = layout({
     title: "You're all set!",
     preheader: `${bookingLabel(booking)} on ${shortDate(booking)} is confirmed.`,
     body: `
@@ -121,8 +159,7 @@ async function bookingConfirmed(body: Record<string, unknown>) {
       <p class="muted">Please arrive 15 minutes early. Need to reschedule? Use the link above or call us at ${PHONE}.</p>`,
     text: `Hi ${first},\n\nYour booking is confirmed.\n\n${summaryText(booking)}\n\nView or change your booking: ${manageUrl(booking)}\n\nPlease arrive 15 minutes early. Questions? Reply to this email or call ${PHONE}.`,
   });
-  const r = await send({ event: "booking_confirmed", to: booking.email, toName: `${booking.first_name ?? ""} ${booking.last_name ?? ""}`.trim(), subject, html: html.html, text: html.text, bookingId });
-  return { ok: true, results: [r] };
+  return { subject, html, text };
 }
 
 async function testEmail(body: Record<string, unknown>) {
