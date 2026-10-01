@@ -2526,7 +2526,8 @@ const Dashboard = {
             </td>
             <td style="text-align:right; vertical-align:middle; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
               <button class="btn-outline-sm" onclick="Dashboard.editMemberDates('${m.id}', '${m.membership_start||''}', '${m.membership_end||''}', '${name}')">Edit Dates</button>
-              <button class="btn-outline-sm" style="color:var(--red);border-color:#f5c6c0;" onclick="Dashboard.resetMemberPassword('${m.id}', '${name}')">Reset Password</button>
+              <button class="btn-outline-sm" onclick="Dashboard.resetMemberPassword('${m.id}', '${name}')">Reset Password</button>
+              <button class="btn-outline-sm" style="color:var(--red);border-color:#f5c6c0;" onclick="Dashboard.deleteMember('${m.id}', '${name}', '${m.email||''}')">🗑 Delete</button>
             </td>
           </tr>
         `;
@@ -2642,6 +2643,35 @@ const Dashboard = {
         }
         logAction('member_password_reset','member',id,{name});
         alert(`✅ Password for ${name} has been reset successfully.`);
+      }
+    );
+  },
+
+  /* ── Delete a member (admin only — removes login, profile and their bookings) ── */
+  deleteMember(id, name, email) {
+    this.showModal(`🗑 Delete Member: ${name}`,
+      `<div style="font-size:.88rem;line-height:1.6;color:var(--navy-dark);">
+         This removes <strong>${name}</strong>${email?` (${email})`:''} from the member portal: their login, their profile, and any member bookings they have.
+       </div>
+       <div style="margin-top:10px;padding:10px 12px;background:#fdecea;border:1px solid #f5c6c0;border-radius:var(--radius-sm);font-size:.8rem;color:#8a1f11;font-weight:600;">This cannot be undone. Boat log entries and past lesson bookings are kept.</div>
+       <div id="dmError" style="margin-top:8px;font-size:.82rem;color:var(--red);min-height:16px;"></div>`,
+      'danger', 'Yes, delete member',
+      async () => {
+        const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/admin_delete_member`, {
+          method: 'POST', headers: sbH(),
+          body: JSON.stringify({ p_user_id: id, p_token: DS.staffToken || null, p_staff_pin: DS.staffToken ? null : CONFIG.STAFF_PIN }),
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          let msg = 'Failed to delete member.';
+          try { msg = JSON.parse(t)?.message || t; } catch(_) {}
+          if (res.status === 404) msg = 'Setup needed: run migration 20261001_member_delete.sql in Supabase first.';
+          else if (/admin_only/.test(msg)) msg = 'Only an admin staff login can delete members.';
+          alert(`❌ ${msg}`);
+          return;
+        }
+        logAction('member_deleted','member',id,{name,email});
+        this.loadMembers();
       }
     );
   },
