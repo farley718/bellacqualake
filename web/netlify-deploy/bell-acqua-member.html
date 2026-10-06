@@ -165,6 +165,22 @@
       </div>
       <button type="submit" class="btn-primary" id="loginBtn">Sign In</button>
       <div class="login-error" id="loginError"></div>
+      <div style="text-align:center;margin-top:14px;font-size:.82rem;">
+        <a href="#" onclick="requestPasswordLink(); return false;" style="color:var(--navy);font-weight:600;">Forgot password / first time here? Email me a link</a>
+      </div>
+    </form>
+    <form id="setPassForm" onsubmit="handleSetPassword(event)" style="display:none;">
+      <div style="font-size:.9rem;color:var(--navy-dark);margin-bottom:14px;line-height:1.5;">Choose the password you'll use to sign in. Your login is your email address.</div>
+      <div class="field">
+        <label for="newPass">New password</label>
+        <input type="password" id="newPass" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"/>
+      </div>
+      <div class="field">
+        <label for="newPass2">Type it again</label>
+        <input type="password" id="newPass2" autocomplete="new-password" required placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"/>
+      </div>
+      <button type="submit" class="btn-primary" id="setPassBtn">Save password &amp; sign in</button>
+      <div class="login-error" id="setPassError"></div>
     </form>
   </div>
 </div>
@@ -335,6 +351,67 @@ async function handleLogin(e) {
   } catch (ex) {
     err.textContent = ex.message;
     btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+/* ── PASSWORD LINK / RECOVERY ─────────────────────────────── */
+// "Forgot password": the app emails a one-time link (send-email → Resend).
+async function requestPasswordLink() {
+  const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
+  const err = document.getElementById('loginError');
+  if (!email) { err.style.color = 'var(--red)'; err.textContent = 'Type your email above first, then tap the link.'; return; }
+  err.style.color = 'var(--navy)'; err.textContent = 'Sending your link…';
+  try {
+    await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${CONFIG.ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'member_password_link', email }),
+    });
+  } catch (e) { /* always show the same message */ }
+  err.style.color = 'var(--green)';
+  err.textContent = `If ${email} is on the member list, a password link is on its way. Check your inbox (and spam folder).`;
+}
+// The emailed link lands back here with the recovery token in the URL hash.
+function recoveryFromHash() {
+  const h = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  if (!h) return null;
+  const p = new URLSearchParams(h);
+  if (p.get('error_description')) return { error: p.get('error_description').replace(/\+/g, ' ') };
+  if (p.get('type') === 'recovery' && p.get('access_token')) return { token: p.get('access_token'), refresh: p.get('refresh_token') };
+  return null;
+}
+function showSetPassword() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('setPassForm').style.display = 'block';
+  document.getElementById('newPass').focus();
+}
+async function handleSetPassword(e) {
+  e.preventDefault();
+  const pw = document.getElementById('newPass').value, pw2 = document.getElementById('newPass2').value;
+  const err = document.getElementById('setPassError'), btn = document.getElementById('setPassBtn');
+  if (pw.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
+  if (pw !== pw2) { err.textContent = 'The two passwords do not match.'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const r = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { 'apikey': CONFIG.ANON_KEY, 'Authorization': `Bearer ${S.recovery.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.msg || d.error_description || 'Could not save the password. Ask for a new link.');
+    S.token = S.recovery.token; S.user = d;
+    localStorage.setItem('ba_m_tok', S.token);
+    if (S.recovery.refresh) localStorage.setItem('ba_m_ref', S.recovery.refresh);
+    history.replaceState(null, '', location.pathname);
+    S.recovery = null;
+    document.getElementById('setPassForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+    startApp();
+  } catch (ex) {
+    err.textContent = ex.message;
+    btn.disabled = false; btn.textContent = 'Save password & sign in';
   }
 }
 
@@ -885,6 +962,15 @@ function showToast(msg, type = '') {
 
 /* ── BOOT ──────────────────────────────────────────────────── */
 (async () => {
+  const rec = recoveryFromHash();
+  if (rec && rec.token) { S.recovery = rec; showSetPassword(); return; }
+  if (rec && rec.error) {
+    document.getElementById('loginScreen').style.display = 'flex';
+    const err = document.getElementById('loginError'); err.style.color = 'var(--red)';
+    err.textContent = `That link didn't work (${rec.error}). Tap "Forgot password" below to get a fresh one.`;
+    history.replaceState(null, '', location.pathname);
+    return;
+  }
   if (await tryRestoreSession()) startApp();
 })();
 

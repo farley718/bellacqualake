@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
       case "ysc_lead":            return json(await evYscLead(body));
       case "installment_receipt": return json(await evInstallment(body, "receipt"));
       case "installment_failed":  return json(await evInstallment(body, "failed"));
+      case "member_password_link": return json(await evMemberPasswordLink(body));
       case "daily": {
         if (CRON_SECRET && req.headers.get("x-cron-key") !== CRON_SECRET) return json({ error: "Unauthorized" }, 401);
         return json(await evDaily());
@@ -247,6 +248,23 @@ async function evInstallment(b: any, kind: "receipt" | "failed") {
   }
   if (kind === "failed") results.push(...await sendStaff("staff_installment_failed", T.staff_installment_failed({ m, p, reason: String(b.reason ?? p.note ?? "") }), { membershipId: m.id, meta: { payment_id: p.id }, dedupe: true }));
   return { ok: true, results };
+}
+
+/* Member asks for a "set / reset my password" link (portal "Forgot password"),
+   or staff send one to a member from the dashboard. Only works for an email
+   that already has a member profile; the link is minted with the service
+   role and sent through Resend, so Supabase's own mailer is never used. */
+async function evMemberPasswordLink(b: any) {
+  const email = String(b.email ?? "").trim().toLowerCase();
+  if (!email) throw new Error("email required");
+  const { data: p } = await db.from("profiles").select("id, first_name, last_name, email, membership_end").ilike("email", email).maybeSingle();
+  // Never reveal whether an address exists: respond "ok" either way.
+  if (!p || email.includes("@placeholder.")) return skip("no member with that email");
+  if (!b.force && await sentRecently("member_password_link", p.id, email, 5)) return skip("link sent in the last 5 minutes");
+  const { data: link, error } = await db.auth.admin.generateLink({ type: "recovery", email: p.email, options: { redirectTo: URLS.portal } });
+  if (error || !link?.properties?.action_link) throw new Error(error?.message || "could not create link");
+  const r = await send("member_password_link", p.email, `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim(), T.member_password_link({ first: p.first_name, url: link.properties.action_link, welcome: !!b.welcome }), { bookingId: p.id, membershipId: p.id });
+  return { ok: true, results: [r] };
 }
 
 /* ── daily job ─────────────────────────────────────────────── */
@@ -582,6 +600,15 @@ const T = {
       <p>No action is taken on your membership yet. Please reply to this email or call ${PHONE} and we'll sort out payment together.</p>`,
     text: `Hi ${d.m.first_name},\n\nWe couldn't charge your card for membership installment ${d.p.seq} (${money(d.p.amount)}, due ${midDate(d.p.due_date)}).${d.reason ? " Reason: " + d.reason : ""}\n\nPlease reply to this email or call ${PHONE}.`,
   }, `Action needed: membership payment didn't go through`),
+  member_password_link: (d: { first?: string; url: string; welcome?: boolean }): Msg => layout({
+    title: d.welcome ? "Set up your member login" : "Reset your password",
+    preheader: d.welcome ? "One click to choose your password for the Bell Acqua member portal." : "Use the link to choose a new password.",
+    body: `<p>Hi ${esc(d.first || "there")},</p>
+      <p>${d.welcome ? "Your Bell Acqua Lake member portal is ready. Click below to choose your password, then you can book your rides online." : "Click below to choose a new password for the Bell Acqua Lake member portal."}</p>
+      ${button(d.welcome ? "Choose my password" : "Reset my password", d.url)}
+      <p class="muted">The link works once and expires in 24 hours. Your login is this email address. If you didn't ask for this, you can ignore it.</p>`,
+    text: `Hi ${d.first || "there"},\n\n${d.welcome ? "Choose your password for the Bell Acqua Lake member portal:" : "Choose a new password for the Bell Acqua Lake member portal:"}\n${d.url}\n\nThe link works once and expires in 24 hours. Your login is this email address.`,
+  }, d.welcome ? "Set up your Bell Acqua member login" : "Reset your Bell Acqua password"),
   membership_expiring: (d: { first?: string; end: string; days: number; plan?: string }): Msg => layout({
     title: d.days <= 7 ? "Your membership ends in a week" : "Your membership renews soon",
     preheader: `Ends ${midDate(d.end)}. Renew to keep your spot on the water.`,
@@ -714,6 +741,7 @@ function SAMPLES(staff: { name: string; email: string }) {
     installment_receipt: { m, p: { ...payments[1], status: "paid", paid_at: "2027-01-01T15:00:00Z" }, all: payments },
     installment_failed: { m, p: payments[1], all: payments, reason: "Your card was declined." },
     membership_expiring: { first, end: "2027-10-01", days: 30, plan: "unlimited" },
+    member_password_link: { first, url: `${URLS.portal}#type=recovery&access_token=SAMPLE`, welcome: true },
     affiliate_credit: { affiliateName: `${first} Sample`, code: "CREDIT-7F2K9Q", pct: 20, referredFirst: "Jordan" },
     ysc_paid: { r },
     ysc_nurture_1: { first, step: 1 }, ysc_nurture_2: { first, step: 2 }, ysc_nurture_3: { first, step: 3 }, ysc_nurture_4: { first, step: 4 }, ysc_nurture_5: { first, step: 5 },

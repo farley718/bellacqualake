@@ -549,6 +549,7 @@
               <option value="installment_receipt">Installment receipt</option>
               <option value="installment_failed">Installment failed</option>
               <option value="membership_expiring">Membership expiring (30 / 7 days)</option>
+              <option value="member_password_link">Set up / reset your login (password link)</option>
             </optgroup>
             <optgroup label="Referrals &amp; youth club">
               <option value="affiliate_credit">Affiliate credit earned</option>
@@ -584,6 +585,7 @@
     <div class="coupons-wrap" style="max-width: 1000px; margin: 0 auto;">
       <div class="coupons-toolbar">
         <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">Manage Members</div>
+        <button class="btn-outline-sm" onclick="Dashboard.emailAllLoginLinks()" title="Emails every current member a one-time link to choose their password">&#9993;&#65039; Email login setup to all current members</button>
       </div>
       
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
@@ -1839,7 +1841,7 @@ const Dashboard = {
     if(!rows.length){ grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">No emails sent yet.</div></div>'; return; }
     const label={booking_receipt:'Payment received',waiver_request:'Sign your waiver',booking_confirmed:'Booking confirmed',booking_changed:'Booking changed',booking_reminder:'Reminder: tomorrow',
       member_booking_created:'Ride booked',member_booking_cancelled:'Ride cancelled',member_reminder:'Reminder: ride tomorrow',
-      membership_welcome:'Membership welcome',membership_waiver_request:'Member waiver request',membership_active:'Membership active',installment_receipt:'Installment receipt',installment_failed:'Installment failed',membership_expiring:'Membership expiring',
+      membership_welcome:'Membership welcome',membership_waiver_request:'Member waiver request',membership_active:'Membership active',installment_receipt:'Installment receipt',installment_failed:'Installment failed',membership_expiring:'Membership expiring',member_password_link:'Login / password link',
       affiliate_credit:'Affiliate credit',ysc_paid:'Youth club registered',ysc_nurture:'Youth club nurture',
       staff_new_booking:'Staff: new booking',staff_booking_changed:'Staff: booking changed',staff_waiver_signed:'Staff: waiver signed',staff_member_booking:'Staff: member ride',staff_new_membership:'Staff: new membership',staff_ysc_paid:'Staff: youth club',staff_installment_failed:'Staff: installment failed',
       test:'Connection test',preview:'Sample'};
@@ -2647,6 +2649,7 @@ const Dashboard = {
             </td>
             <td style="text-align:right; vertical-align:middle; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
               <button class="btn-outline-sm" onclick="Dashboard.editMemberDates('${m.id}', '${m.membership_start||''}', '${m.membership_end||''}', '${name}')">Edit Dates</button>
+              <button class="btn-outline-sm" onclick="Dashboard.emailLoginLink('${m.email||''}', '${name}')">Email login link</button>
               <button class="btn-outline-sm" onclick="Dashboard.resetMemberPassword('${m.id}', '${name}')">Reset Password</button>
               <button class="btn-outline-sm" style="color:var(--red);border-color:#f5c6c0;" onclick="Dashboard.deleteMember('${m.id}', '${name}', '${m.email||''}')">🗑 Delete</button>
             </td>
@@ -2766,6 +2769,34 @@ const Dashboard = {
         alert(`✅ Password for ${name} has been reset successfully.`);
       }
     );
+  },
+
+  /* ── Login links: the app emails a one-time "choose your password" link ── */
+  async emailLoginLink(email, name, quiet=false){
+    if(!email||email.includes('@placeholder.')){ if(!quiet) alert(`❌ ${name} has no real email on file yet.`); return false; }
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
+        method:'POST',headers:sbH(),body:JSON.stringify({event:'member_password_link',email,welcome:true,force:true}),
+      });
+      const d=await r.json().catch(()=>({}));
+      const res=(d.results&&d.results[0])||{};
+      const ok=res.status==='sent';
+      if(!quiet) alert(ok?`✅ Login link sent to ${name} (${email}).`:`❌ ${res.error||res.reason||d.error||'Not sent'}`);
+      if(ok) logAction('member_login_link_sent','member',email,{name});
+      return ok;
+    }catch(e){ if(!quiet) alert(`❌ ${e.message}`); return false; }
+  },
+  async emailAllLoginLinks(){
+    const today=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+    const iso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    let rows=[];
+    try{ const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=email,first_name,last_name,membership_end`,{headers:sbH()}); rows=await r.json(); }catch(e){ alert('Could not load members.'); return; }
+    const members=rows.filter(m=>m.email&&!m.email.includes('@placeholder.')&&m.membership_end&&m.membership_end>=iso);
+    if(!members.length){ alert('No current members with an email on file.'); return; }
+    if(!confirm(`Send a "set up your login" email to ${members.length} current members?\n\nEach gets a one-time link to choose their own password. Expired members and members without a real email are skipped.`)) return;
+    let ok=0;
+    for(const m of members){ if(await this.emailLoginLink(m.email,`${m.first_name||''} ${m.last_name||''}`.trim(),true)) ok++; }
+    alert(`✅ Sent ${ok} of ${members.length}. See the Emails tab for the log.`);
   },
 
   /* ── Delete a member (admin only — removes login, profile and their bookings) ── */
