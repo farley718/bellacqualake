@@ -256,7 +256,7 @@ const CONFIG = {
   DAY_END_LAST:  { h: 20, m: 0  },  // end boundary 8:00 PM (last slot starts at 7:30 PM)
   SLOT_MINS:     15,
   MAX_PER_DAY:   2,
-  WINDOW_MINS:   120,
+  // Mike (2026-10-06): no minimum, max 2 rides a day, any spacing between them.
 };
 
 function getLADate() {
@@ -555,12 +555,6 @@ function slotStatus(slotStart, takenSlots, myBookings) {
   if (takenSlots.some(t => t.slot.slice(0,5) === slotStart)) return 'taken';
   const totalMine = myBookings.length + S.pendingSlots.length;
   if (totalMine >= CONFIG.MAX_PER_DAY) return 'locked';
-  if (totalMine === 1) {
-    const allMine = [...myBookings.map(b => b.slot_start.slice(0,5)), ...S.pendingSlots];
-    const existMins = toMins(allMine[0]);
-    const thisMins  = toMins(slotStart);
-    if (Math.abs(thisMins - existMins) > CONFIG.WINDOW_MINS) return 'locked';
-  }
   return 'available';
 }
 
@@ -643,12 +637,12 @@ function renderSlots() {
     </div>` : '');
 
   let limitNote = '';
-  if (myCount === 2) {
-    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--gold-light);border-radius:8px;font-size:.78rem;color:#7a4a00;font-weight:600;">You have selected 2 slots on this day — ready to confirm.</div>`;
+  if (myCount >= CONFIG.MAX_PER_DAY) {
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--gold-light);border-radius:8px;font-size:.78rem;color:#7a4a00;font-weight:600;">You have 2 rides on this day — that's the daily maximum.</div>`;
   } else if (myCount === 1) {
-    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--blue-light);border-radius:8px;font-size:.78rem;color:var(--navy);font-weight:600;">You must select exactly 2 slots. Please select one more (must be within 2 hours).</div>`;
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:var(--blue-light);border-radius:8px;font-size:.78rem;color:var(--navy);font-weight:600;">1 ride selected. You can add one more at any time of day, or confirm now.</div>`;
   } else {
-    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:.78rem;color:var(--gray);text-align:center;">Note: You must select exactly 2 slots per day.</div>`;
+    limitNote = `<div style="margin:0 20px 12px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:.78rem;color:var(--gray);text-align:center;">Book 1 or 2 rides a day. They can be back to back or hours apart.</div>`;
   }
 
   let gridHtml = '';
@@ -705,8 +699,7 @@ function renderSlots() {
         gridHtml += `<button class="slot-btn taken" disabled>${timeLabel}<br>${tName}</button>`;
       } else if (status === 'locked') {
         const totalMine = S.myDayBookings.length + S.pendingSlots.length;
-        const reason = totalMine >= CONFIG.MAX_PER_DAY ? 'Limit' : '±2hr';
-        gridHtml += `<button class="slot-btn locked" disabled>${timeLabel}<br>${reason}</button>`;
+        gridHtml += `<button class="slot-btn locked" disabled>${timeLabel}<br>Limit</button>`;
       } else {
         gridHtml += `<button class="slot-btn" onclick="toggleSlot('${s.start}')">${timeLabel}</button>`;
       }
@@ -735,15 +728,6 @@ function toggleSlot(start) {
     if (total >= CONFIG.MAX_PER_DAY) {
       showToast('Daily limit reached', 'error');
       return;
-    }
-    const allMine = [...S.myDayBookings.map(b => b.slot_start.slice(0,5)), ...S.pendingSlots];
-    if (allMine.length === 1) {
-       const existMins = toMins(allMine[0]);
-       const thisMins = toMins(start);
-       if (Math.abs(thisMins - existMins) > CONFIG.WINDOW_MINS) {
-         showToast('Second booking must be within 2 hours of the first', 'error');
-         return;
-       }
     }
     S.pendingSlots.push(start);
   }

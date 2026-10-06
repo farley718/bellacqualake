@@ -31,7 +31,7 @@ Member times are the **bottom half of each hour**, in 15-minute slots (for examp
 
 1. Under **Select a Date**, use the ‹ › arrows to find the month, then tap a day. Grayed-out days can't be booked. That includes past days, days outside your membership dates, and days staff have closed. **Midweek members** can only book Monday–Thursday.
 2. The **Available Slots** panel lists every hour. Tap a white slot to select it. It changes to **Selected**.
-3. Pick **2 slots** for the day. The app asks for two, and **two is the daily maximum**. Your second slot has to be **within 2 hours** of the first.
+3. Pick **1 or 2 slots** for the day. **Two is the daily maximum.** They can be back to back or hours apart, whatever suits you.
 4. Tap the green **Confirm 2 Booking(s)** button.
 5. You'll see "Bookings confirmed!" Your slots turn green with **✓ your name** and appear under **My Upcoming Bookings**.
 
