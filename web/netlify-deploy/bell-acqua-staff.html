@@ -311,6 +311,7 @@
   <button class="tab-btn" onclick="Dashboard.setTab('staff')">🧑‍🏫 Staff</button>
   <button class="tab-btn" onclick="Dashboard.setTab('activity')">🕘 Activity</button>
   <button class="tab-btn" onclick="Dashboard.setTab('emails')">✉️ Emails</button>
+  <button class="tab-btn" onclick="Dashboard.setTab('banquet')">🎟 Banquet</button>
   <button class="tab-btn" onclick="window.open('bell-acqua-boatlog.html','_blank')" title="Opens the Boat Log (BA Hours) in its own tab — kiosk-friendly for the iPad">🚤 Boat Log ↗</button>
 </div>
 
@@ -518,6 +519,28 @@
     </div>
   </div>
 
+  <!-- ─── Banquet Tab (NCWSA Nationals Banquet ticket sales from Square) ─── -->
+  <div class="tab-content" id="tab-banquet">
+    <div class="coupons-wrap">
+      <div class="coupons-toolbar">
+        <div>
+          <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">NCWSA Nationals Banquet — paid tickets</div>
+          <div style="font-size:.78rem;color:var(--gray);margin-top:2px;">Every Square payment for the banquet ticket, as it happens. Buyers get a confirmation email and are tagged paid in GHL.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="banquetSearch" type="text" placeholder="🔍 Search name or email…" oninput="Dashboard.renderBanquet()"
+                 style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:'Inter',sans-serif;min-width:220px;">
+          <button class="btn-outline-sm" onclick="Dashboard.exportBanquetCsv()">⬇ Export CSV</button>
+          <button class="btn-outline-sm" onclick="Dashboard.loadBanquet()">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="banquetStats" style="display:flex;gap:12px;flex-wrap:wrap;margin:0 0 14px;"></div>
+      <div class="customers-table-wrap" id="banquetGrid">
+        <div class="loading-row"><div class="loading-spinner"></div> Loading ticket sales…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── Emails Tab ─── -->
   <div class="tab-content" id="tab-emails">
     <div class="coupons-wrap">
@@ -559,6 +582,10 @@
               <option value="ysc_nurture_3">YSC nurture 3: parent questions</option>
               <option value="ysc_nurture_4">YSC nurture 4: what $2,000 buys</option>
               <option value="ysc_nurture_5">YSC nurture 5: last call</option>
+            </optgroup>
+            <optgroup label="NCWSA banquet">
+              <option value="banquet_confirmed">Banquet: seats confirmed (after Square payment)</option>
+              <option value="banquet_reminder">Banquet: reminder the day before</option>
             </optgroup>
             <optgroup label="Staff notifications">
               <option value="staff_new_booking">Staff: new booking</option>
@@ -1805,7 +1832,7 @@ const Dashboard = {
 
   setTab(tab){
     DS.activeTab=tab;
-    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers','staff','activity','emails'][i]===tab));
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['calendar','customers','members','coupons','referrals','waivers','staff','activity','emails','banquet'][i]===tab));
     document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if(tab==='customers') renderCustomers();
@@ -1816,6 +1843,55 @@ const Dashboard = {
     if(tab==='staff')     renderStaffTab();
     if(tab==='activity')  renderActivity();
     if(tab==='emails')    this.loadEmails();
+    if(tab==='banquet')   this.loadBanquet();
+  },
+
+  /* ── Banquet ticket sales (banquet_orders, written by the square-webhook function) ── */
+  async loadBanquet(){
+    const grid=document.getElementById('banquetGrid');
+    grid.innerHTML='<div class="loading-row"><div class="loading-spinner"></div> Loading ticket sales…</div>';
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/banquet_orders?select=*&order=paid_at.desc`,{headers:sbH()});
+      if(!r.ok) throw new Error(await r.text());
+      DS.banquet=await r.json();
+    }catch(e){
+      DS.banquet=null;
+      document.getElementById('banquetStats').innerHTML='';
+      grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">Not set up yet — run migration <span style="font-family:monospace;">20261008_banquet_orders.sql</span> in Supabase and deploy the <span style="font-family:monospace;">square-webhook</span> function.</div></div>';
+      return;
+    }
+    this.renderBanquet();
+  },
+  renderBanquet(){
+    const grid=document.getElementById('banquetGrid'), stats=document.getElementById('banquetStats');
+    if(!Array.isArray(DS.banquet)) return;
+    const paid=DS.banquet.filter(o=>o.status==='paid');
+    const seats=paid.reduce((n,o)=>n+(o.quantity||0),0), revenue=paid.reduce((n,o)=>n+(o.amount_cents||0),0)/100;
+    const chip=(l,v)=>`<div style="background:white;border:1.5px solid var(--border);border-radius:10px;padding:10px 16px;min-width:120px;"><div style="font-size:.66rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;">${l}</div><div style="font-family:'Montserrat',sans-serif;font-size:1.25rem;font-weight:800;color:var(--navy-dark);">${v}</div></div>`;
+    stats.innerHTML=chip('Seats sold',seats)+chip('Orders',paid.length)+chip('Revenue',`$${revenue.toLocaleString('en-US',{minimumFractionDigits:2})}`)+(DS.banquet.length-paid.length?chip('Refunded / cancelled',DS.banquet.length-paid.length):'');
+    const q=(document.getElementById('banquetSearch')?.value||'').trim().toLowerCase();
+    const rows=DS.banquet.filter(o=>!q||[o.buyer_name,o.buyer_email,o.buyer_phone,o.square_payment_id].some(v=>(v||'').toLowerCase().includes(q)));
+    if(!rows.length){ grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">No ticket payments yet.</div></div>'; return; }
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    grid.innerHTML=`<table class="customers-table" style="width:100%;border-collapse:collapse;font-size:.8rem;">
+      <thead><tr style="background:var(--navy-dark);color:white;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;">
+        <th style="padding:9px 12px;text-align:left;">Paid</th><th style="padding:9px 12px;text-align:left;">Buyer</th><th style="padding:9px 12px;text-align:right;">Seats</th><th style="padding:9px 12px;text-align:right;">Amount</th><th style="padding:9px 12px;text-align:left;">Status</th><th style="padding:9px 12px;text-align:left;">Receipt</th>
+      </tr></thead>
+      <tbody>${rows.map(o=>`<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:9px 12px;white-space:nowrap;color:var(--gray);">${o.paid_at?new Date(o.paid_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''}</td>
+        <td style="padding:9px 12px;"><div style="font-weight:700;color:var(--navy-dark);">${esc(o.buyer_name||'—')}</div><div style="font-size:.72rem;color:var(--gray);">${esc(o.buyer_email||'')}${o.buyer_phone?' · '+esc(o.buyer_phone):''}</div></td>
+        <td style="padding:9px 12px;text-align:right;font-weight:700;">${o.quantity}</td>
+        <td style="padding:9px 12px;text-align:right;">$${((o.amount_cents||0)/100).toFixed(2)}</td>
+        <td style="padding:9px 12px;">${o.status==='paid'?'<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#e6f6ea;color:#1b6b33;">Paid</span>':`<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#fdecea;color:#8a1f11;">${esc(o.status)}</span>`}</td>
+        <td style="padding:9px 12px;">${o.receipt_url?`<a href="${esc(o.receipt_url)}" target="_blank" rel="noopener" style="color:var(--navy);">Square ↗</a>`:''}</td>
+      </tr>`).join('')}</tbody></table>`;
+  },
+  exportBanquetCsv(){
+    if(!Array.isArray(DS.banquet)||!DS.banquet.length){ alert('Nothing to export yet.'); return; }
+    const cols=['paid_at','buyer_name','buyer_email','buyer_phone','quantity','amount_cents','status','square_payment_id','receipt_url'];
+    const head=['Paid at','Name','Email','Phone','Seats','Amount','Status','Square payment id','Receipt'];
+    const csv=[head.join(',')].concat(DS.banquet.map(o=>cols.map(c=>{ let v=o[c]==null?'':String(o[c]); if(c==='amount_cents') v=((o[c]||0)/100).toFixed(2); return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v; }).join(','))).join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='banquet-ticket-sales.csv'; a.click();
   },
 
   /* ── Email log (app-sent transactional email) ── */
@@ -1842,7 +1918,7 @@ const Dashboard = {
     const label={booking_receipt:'Payment received',waiver_request:'Sign your waiver',booking_confirmed:'Booking confirmed',booking_changed:'Booking changed',booking_reminder:'Reminder: tomorrow',
       member_booking_created:'Ride booked',member_booking_cancelled:'Ride cancelled',member_reminder:'Reminder: ride tomorrow',
       membership_welcome:'Membership welcome',membership_waiver_request:'Member waiver request',membership_active:'Membership active',installment_receipt:'Installment receipt',installment_failed:'Installment failed',membership_expiring:'Membership expiring',member_password_link:'Login / password link',
-      affiliate_credit:'Affiliate credit',ysc_paid:'Youth club registered',ysc_nurture:'Youth club nurture',
+      affiliate_credit:'Affiliate credit',banquet_confirmed:'Banquet seats confirmed',banquet_reminder:'Banquet reminder',ysc_paid:'Youth club registered',ysc_nurture:'Youth club nurture',
       staff_new_booking:'Staff: new booking',staff_booking_changed:'Staff: booking changed',staff_waiver_signed:'Staff: waiver signed',staff_member_booking:'Staff: member ride',staff_new_membership:'Staff: new membership',staff_ysc_paid:'Staff: youth club',staff_installment_failed:'Staff: installment failed',
       test:'Connection test',preview:'Sample'};
     const pill=s=>s==='sent'?'<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;background:#e6f6ea;color:#1b6b33;">Sent</span>'

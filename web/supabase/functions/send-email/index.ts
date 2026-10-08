@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
       case "installment_receipt": return json(await evInstallment(body, "receipt"));
       case "installment_failed":  return json(await evInstallment(body, "failed"));
       case "member_password_link": return json(await evMemberPasswordLink(body));
+      case "banquet_confirmed":   return json(await evBanquetConfirmed(body));
       case "daily": {
         if (CRON_SECRET && req.headers.get("x-cron-key") !== CRON_SECRET) return json({ error: "Unauthorized" }, 401);
         return json(await evDaily());
@@ -267,10 +268,34 @@ async function evMemberPasswordLink(b: any) {
   return { ok: true, results: [r] };
 }
 
+/* NCWSA banquet ticket paid (square-webhook → banquet_orders).
+   TEMPORARY for the Oct 17, 2026 event — remove after the banquet (see context file). */
+const BANQUET = { name: "2026 NCWSA Nationals Banquet", date: "2026-10-17", when: "Saturday, October 17, 2026 · 6:00–10:00 PM (afterparty after 10)", venue: "Cal Expo, Building C", address: "1600 Exposition Blvd, Sacramento, CA 95815", page: "https://waterski-ncswa.com/banquet-2026",
+  maps: "https://maps.google.com/?q=" + encodeURIComponent("Cal Expo Building C, 1600 Exposition Blvd, Sacramento, CA 95815") };
+async function evBanquetConfirmed(b: any) {
+  const id = req(b.order_id, "order_id");
+  const { data: o } = await db.from("banquet_orders").select("id, buyer_name, buyer_email, quantity, amount_cents, receipt_url, paid_at").eq("id", id).maybeSingle();
+  if (!o) throw new Error("order not found");
+  if (!o.buyer_email) return skip("no buyer email on the Square payment");
+  if (!b.force && await sentEver("banquet_confirmed", o.id, o.buyer_email)) return skip("already sent");
+  return { ok: true, results: [await send("banquet_confirmed", o.buyer_email, o.buyer_name, T.banquet_confirmed({ o }), { bookingId: o.id })] };
+}
+
 /* ── daily job ─────────────────────────────────────────────── */
 async function evDaily() {
   const today = laDate(0), tomorrow = laDate(1);
-  const out: Record<string, number> = { booking_reminders: 0, member_reminders: 0, membership_expiring: 0, ysc_nurture: 0, skipped: 0 };
+  const out: Record<string, number> = { booking_reminders: 0, member_reminders: 0, membership_expiring: 0, ysc_nurture: 0, banquet_reminders: 0, skipped: 0 };
+
+  // 0. Banquet: day-before reminder to every paid buyer (temporary, Oct 2026)
+  if (tomorrow === BANQUET.date) {
+    const { data: orders } = await db.from("banquet_orders").select("id, buyer_name, buyer_email, quantity").eq("status", "paid");
+    for (const o of orders ?? []) {
+      if (!o.buyer_email) continue;
+      if (await sentWithMeta("banquet_reminder", o.id, o.buyer_email, { date: BANQUET.date })) { out.skipped++; continue; }
+      await send("banquet_reminder", o.buyer_email, o.buyer_name, T.banquet_reminder({ o }), { bookingId: o.id, meta: { date: BANQUET.date } });
+      out.banquet_reminders++;
+    }
+  }
 
   // 1. Public bookings tomorrow
   const { data: bookings } = await db.from("bookings").select("id, email, first_name, last_name, party_size, booking_type, slots, total_amount, status").eq("status", "confirmed");
@@ -619,6 +644,34 @@ const T = {
     text: `Hi ${d.first || "there"},\n\nYour ${planLabel(d.plan)} ends on ${longDate(d.end)} (${d.days} days). Renew to keep your portal access: ${URLS.membership}\nOr reply to this email / call ${PHONE}.`,
   }, d.days <= 7 ? `Your Bell Acqua membership ends ${midDate(d.end)}` : `Renewal reminder: membership ends ${midDate(d.end)}`),
 
+  /* ── NCWSA banquet (temporary, Oct 2026) ── */
+  banquet_confirmed: (d: { o: any }): Msg => {
+    const o = d.o, n = Number(o.quantity || 1);
+    return layout({
+      title: `You're in — ${n} seat${n > 1 ? "s" : ""} confirmed`,
+      preheader: `${BANQUET.name}: ${BANQUET.when}.`,
+      body: `<p>Hi ${esc(firstName(o.buyer_name) || "there")},</p>
+        <p>Thank you! Your payment went through and your seat${n > 1 ? "s are" : " is"} reserved for the ${esc(BANQUET.name)}.</p>
+        ${table([["Seats", String(n)], ["Paid", money(o.amount_cents / 100)], ["When", esc(BANQUET.when)], ["Where", `${esc(BANQUET.venue)}<br>${esc(BANQUET.address)}`], ["Parking", "Free. Enter via the Main Gate at Exposition Blvd &amp; Heritage Way, Lot C (Lot B next closest)."], ["Dinner", "Full buffet included with every seat. 21+ bar."]])}
+        ${button("Get directions", BANQUET.maps)}
+        <p class="muted">Keep this email as your confirmation. Seating is by team, so tell the check-in table your name${n > 1 ? " and party" : ""}.${o.receipt_url ? ` Your card receipt from Square is <a href="${o.receipt_url}">here</a>.` : ""} Questions? Reply to this email.</p>`,
+      text: `Hi ${firstName(o.buyer_name) || "there"},\n\nYour payment went through. ${n} seat(s) reserved for the ${BANQUET.name}.\n\nWhen: ${BANQUET.when}\nWhere: ${BANQUET.venue}, ${BANQUET.address}\nParking: free, Main Gate at Exposition Blvd & Heritage Way, Lot C.\nDinner: full buffet included. 21+ bar.\nPaid: ${money(o.amount_cents / 100)}\n\nDirections: ${BANQUET.maps}`,
+    }, `Confirmed: ${n} seat${n > 1 ? "s" : ""} — ${BANQUET.name}`);
+  },
+  banquet_reminder: (d: { o: any }): Msg => {
+    const o = d.o, n = Number(o.quantity || 1);
+    return layout({
+      title: "See you tomorrow night!",
+      preheader: `${BANQUET.name} is tomorrow, 6 PM at Cal Expo Building C.`,
+      body: `<p>Hi ${esc(firstName(o.buyer_name) || "there")},</p>
+        <p>Quick reminder: the ${esc(BANQUET.name)} is <strong>tomorrow</strong>.</p>
+        ${table([["Seats", String(n)], ["When", esc(BANQUET.when)], ["Where", `${esc(BANQUET.venue)}<br>${esc(BANQUET.address)}`], ["Parking", "Free. Main Gate at Exposition Blvd &amp; Heritage Way, Lot C."]])}
+        ${button("Get directions", BANQUET.maps)}
+        <p class="muted">Doors at 6:00 PM. Buffet dinner included. 21+ bar. Afterparty after 10.</p>`,
+      text: `Reminder: the ${BANQUET.name} is tomorrow.\n${BANQUET.when}\n${BANQUET.venue}, ${BANQUET.address}\nFree parking, Lot C.\nDirections: ${BANQUET.maps}`,
+    }, `Tomorrow: ${BANQUET.name}`);
+  },
+
   /* ── affiliates ── */
   affiliate_credit: (d: { affiliateName: string; code: string; pct: number; referredFirst: string }): Msg => layout({
     title: `You just earned ${d.pct}% off`,
@@ -742,6 +795,8 @@ function SAMPLES(staff: { name: string; email: string }) {
     installment_failed: { m, p: payments[1], all: payments, reason: "Your card was declined." },
     membership_expiring: { first, end: "2027-10-01", days: 30, plan: "unlimited" },
     member_password_link: { first, url: `${URLS.portal}#type=recovery&access_token=SAMPLE`, welcome: true },
+    banquet_confirmed: { o: { id: "SAMPLE", buyer_name: `${first} Sample`, buyer_email: staff.email, quantity: 4, amount_cents: 30000, receipt_url: "https://squareup.com/receipt/preview/SAMPLE", paid_at: new Date().toISOString() } },
+    banquet_reminder:  { o: { id: "SAMPLE", buyer_name: `${first} Sample`, buyer_email: staff.email, quantity: 4 } },
     affiliate_credit: { affiliateName: `${first} Sample`, code: "CREDIT-7F2K9Q", pct: 20, referredFirst: "Jordan" },
     ysc_paid: { r },
     ysc_nurture_1: { first, step: 1 }, ysc_nurture_2: { first, step: 2 }, ysc_nurture_3: { first, step: 3 }, ysc_nurture_4: { first, step: 4 }, ysc_nurture_5: { first, step: 5 },
