@@ -266,7 +266,8 @@
     .blocked-banner{background:#fdf0ef;border:2px solid #f5c6c0;border-radius:var(--radius);padding:24px;margin:0 24px 24px;}
     .info-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--gray);padding:2px 0;}
     @media(max-width:600px){.staff-header{padding:10px 14px;}.hdr-clock{display:none;}.dashboard{padding:12px 10px 40px;}}
-  </style>
+    @media (max-width:820px){ #inboxGrid{ grid-template-columns:1fr !important; } }
+</style>
 </head>
 <body>
 
@@ -573,6 +574,7 @@
               <option value="installment_failed">Installment failed</option>
               <option value="membership_expiring">Membership expiring (30 / 7 days)</option>
               <option value="member_password_link">Set up / reset your login (password link)</option>
+              <option value="member_message">Member Inbox message (example)</option>
             </optgroup>
             <optgroup label="Referrals &amp; youth club">
               <option value="affiliate_credit">Affiliate credit earned</option>
@@ -658,8 +660,15 @@
         <!-- Right: Member List -->
         <div class="customers-table-wrap" style="box-shadow:var(--shadow); border-radius:var(--radius); overflow:hidden;">
           <div style="background:var(--navy-dark); color:white; padding:12px 16px; font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; display:flex; justify-content:space-between; align-items:center;">
-            <span>Current Members</span>
+            <span>Members <span id="memberCount" style="opacity:.7;font-weight:600;"></span></span>
             <button class="btn-outline-sm" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:white; padding:4px 8px; font-size:.7rem;" onclick="Dashboard.loadMembers()">↻ Refresh</button>
+          </div>
+          <div style="padding:10px 12px;background:#f7fafc;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input id="memberSearch" type="search" placeholder="🔍 Search name or email…" oninput="Dashboard.renderMembers()"
+                   style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;font-family:'Inter',sans-serif;">
+            <label style="font-size:.74rem;color:var(--gray);display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;">
+              <input type="checkbox" id="memberSelectAll" onchange="Dashboard.selectAllShown(this.checked)"> Select shown
+            </label>
           </div>
           <div style="max-height: 480px; overflow-y:auto; background:white;">
             <table class="customers-table" style="width:100%; border-collapse:collapse; font-size:.82rem;">
@@ -667,6 +676,50 @@
                 <tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);">Loading members...</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Member Inbox: email members from the app -->
+      <div class="coupons-toolbar" style="margin-top:28px;">
+        <div>
+          <div style="font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--navy-dark);">📨 Member Inbox</div>
+          <div style="font-size:.78rem;color:var(--gray);margin-top:2px;">Email members from info@bellacqualakes.com. Every reply goes straight to mtbalake@gmail.com.</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;" id="inboxGrid">
+        <div class="coupon-add-form" style="display:block;margin-bottom:0;">
+          <div class="coupon-form-title">New message</div>
+          <div style="font-size:.74rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">Send to</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:.86rem;">
+            <label style="cursor:pointer;"><input type="radio" name="mmAudience" value="current" checked onchange="Dashboard.updateAudience()"> Current members <span id="mmCountCurrent" style="color:var(--gray);"></span></label>
+            <label style="cursor:pointer;"><input type="radio" name="mmAudience" value="all" onchange="Dashboard.updateAudience()"> All members, including expired <span id="mmCountAll" style="color:var(--gray);"></span></label>
+            <label style="cursor:pointer;"><input type="radio" name="mmAudience" value="selected" onchange="Dashboard.updateAudience()"> Selected members <span id="mmCountSelected" style="color:var(--gray);"></span></label>
+          </div>
+          <div id="mmSelectedNames" style="font-size:.74rem;color:var(--gray);margin-top:6px;line-height:1.5;"></div>
+          <div class="form-field" style="margin-top:14px;">
+            <label>Subject *</label>
+            <input type="text" id="mmSubject" maxlength="150" placeholder="e.g. Lake closed Saturday for maintenance" />
+          </div>
+          <div class="form-field" style="margin-top:12px;">
+            <label>Message *</label>
+            <textarea id="mmMessage" rows="8" maxlength="10000" placeholder="Write your message. Leave a blank line between paragraphs." style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;font-family:'Inter',sans-serif;resize:vertical;"></textarea>
+          </div>
+          <label style="font-size:.8rem;color:var(--gray);display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;">
+            <input type="checkbox" id="mmGreet" checked> Start each email with "Hi [first name],"
+          </label>
+          <div class="coupon-form-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-primary" id="mmSendBtn" onclick="Dashboard.sendMemberMessage()">Send message</button>
+          </div>
+          <div id="mmStatus" style="margin-top:10px;font-size:.84rem;font-weight:600;min-height:18px;"></div>
+        </div>
+        <div class="customers-table-wrap" style="box-shadow:var(--shadow);border-radius:var(--radius);overflow:hidden;">
+          <div style="background:var(--navy-dark);color:white;padding:12px 16px;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;">
+            <span>Sent messages</span>
+            <button class="btn-outline-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;padding:4px 8px;font-size:.7rem;" onclick="Dashboard.loadSentMessages()">↻ Refresh</button>
+          </div>
+          <div id="mmHistory" style="max-height:520px;overflow-y:auto;background:white;">
+            <div style="padding:24px;text-align:center;color:var(--gray);font-size:.84rem;">Loading…</div>
           </div>
         </div>
       </div>
@@ -1917,7 +1970,7 @@ const Dashboard = {
     if(!rows.length){ grid.innerHTML='<div class="empty-state" style="padding:26px;"><div style="font-size:.85rem;color:var(--gray);">No emails sent yet.</div></div>'; return; }
     const label={booking_receipt:'Payment received',waiver_request:'Sign your waiver',booking_confirmed:'Booking confirmed',booking_changed:'Booking changed',booking_reminder:'Reminder: tomorrow',
       member_booking_created:'Ride booked',member_booking_cancelled:'Ride cancelled',member_reminder:'Reminder: ride tomorrow',
-      membership_welcome:'Membership welcome',membership_waiver_request:'Member waiver request',membership_active:'Membership active',installment_receipt:'Installment receipt',installment_failed:'Installment failed',membership_expiring:'Membership expiring',member_password_link:'Login / password link',
+      membership_welcome:'Membership welcome',membership_waiver_request:'Member waiver request',membership_active:'Membership active',installment_receipt:'Installment receipt',installment_failed:'Installment failed',membership_expiring:'Membership expiring',member_password_link:'Login / password link',member_message:'Member Inbox message',
       affiliate_credit:'Affiliate credit',banquet_confirmed:'Banquet seats confirmed',banquet_reminder:'Banquet reminder',ysc_paid:'Youth club registered',ysc_nurture:'Youth club nurture',
       staff_new_booking:'Staff: new booking',staff_booking_changed:'Staff: booking changed',staff_waiver_signed:'Staff: waiver signed',staff_member_booking:'Staff: member ride',staff_new_membership:'Staff: new membership',staff_ysc_paid:'Staff: youth club',staff_installment_failed:'Staff: installment failed',
       test:'Connection test',preview:'Sample'};
@@ -2699,42 +2752,161 @@ const Dashboard = {
     const tbody = document.getElementById('membersTableBody');
     tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);"><div class="loading-spinner"></div> Loading...</td></tr>';
     this.loadMemberships();
+    this.loadSentMessages();
+    if(!DS.memberSel) DS.memberSel=new Set();
     try {
-      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=id,email,first_name,last_name,membership_start,membership_end,membership_type&order=created_at.desc`, { headers: sbH() });
+      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=id,email,first_name,last_name,membership_start,membership_end,membership_type&order=last_name.asc,first_name.asc`, { headers: sbH() });
       if(!res.ok) throw new Error();
-      const members = await res.json();
-      if(!members.length) {
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);">No members found.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = members.map(m => {
-        const name = `${m.first_name||''} ${m.last_name||''}`.trim() || 'Unknown';
-        const start = m.membership_start ? new Date(m.membership_start).toLocaleDateString() : 'N/A';
-        const end = m.membership_end ? new Date(m.membership_end).toLocaleDateString() : 'N/A';
-        const planBadge = m.membership_type==='midweek'
-          ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--blue-light);color:var(--navy);border:1px solid #b3ddf0;">🌊 Midweek</span>'
-          : m.membership_type==='unlimited'
-            ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--gold-light);color:#92600a;border:1px solid #eedc9a;">☀️ Unlimited</span>'
-            : '';
-        return `
-          <tr>
-            <td>
-              <div style="font-weight:700;color:var(--navy-dark);">${name} ${planBadge}</div>
-              <div style="font-size:.75rem;color:var(--gray);margin-top:2px;">${m.email}</div>
-              <div style="font-size:.7rem;margin-top:6px;font-weight:600;color:var(--navy);">Active: ${start} – ${end}</div>
-            </td>
-            <td style="text-align:right; vertical-align:middle; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-              <button class="btn-outline-sm" onclick="Dashboard.editMemberDates('${m.id}', '${m.membership_start||''}', '${m.membership_end||''}', '${name}')">Edit Dates</button>
-              <button class="btn-outline-sm" onclick="Dashboard.emailLoginLink('${m.email||''}', '${name}')">Email login link</button>
-              <button class="btn-outline-sm" onclick="Dashboard.resetMemberPassword('${m.id}', '${name}')">Reset Password</button>
-              <button class="btn-outline-sm" style="color:var(--red);border-color:#f5c6c0;" onclick="Dashboard.deleteMember('${m.id}', '${name}', '${m.email||''}')">🗑 Delete</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      DS.memberList = await res.json();
+      [...DS.memberSel].forEach(id=>{ if(!DS.memberList.some(m=>m.id===id)) DS.memberSel.delete(id); });
+      this.renderMembers();
     } catch(e) {
+      DS.memberList = null;
       tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--red);">Failed to load members.<br/>Please run the SQL snippet in Supabase.</td></tr>';
     }
+  },
+  memberToday(){
+    const t=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+    return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  },
+  shownMembers(){
+    const q=(document.getElementById('memberSearch')?.value||'').trim().toLowerCase();
+    return (DS.memberList||[]).filter(m=>!q||`${m.first_name||''} ${m.last_name||''} ${m.email||''}`.toLowerCase().includes(q));
+  },
+  renderMembers(){
+    const tbody = document.getElementById('membersTableBody');
+    if(!Array.isArray(DS.memberList)) return;
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const today=this.memberToday();
+    const rows=this.shownMembers();
+    document.getElementById('memberCount').textContent=`(${rows.length}${rows.length!==DS.memberList.length?' of '+DS.memberList.length:''})`;
+    const all=document.getElementById('memberSelectAll');
+    if(all) all.checked = rows.length>0 && rows.every(m=>DS.memberSel.has(m.id));
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--gray);">${DS.memberList.length?'No members match that search.':'No members found.'}</td></tr>`;
+      this.updateAudience(); return;
+    }
+    tbody.innerHTML = rows.map(m => {
+      const name = `${m.first_name||''} ${m.last_name||''}`.trim() || 'Unknown';
+      const nameJs = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const start = m.membership_start ? new Date(m.membership_start+'T00:00:00').toLocaleDateString() : 'N/A';
+      const end = m.membership_end ? new Date(m.membership_end+'T00:00:00').toLocaleDateString() : 'N/A';
+      const expired = m.membership_end && m.membership_end < today;
+      const placeholder = (m.email||'').includes('@placeholder.');
+      const planBadge = m.membership_type==='midweek'
+        ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--blue-light);color:var(--navy);border:1px solid #b3ddf0;">🌊 Midweek</span>'
+        : m.membership_type==='unlimited'
+          ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--gold-light);color:#92600a;border:1px solid #eedc9a;">☀️ Unlimited</span>'
+          : '';
+      const expBadge = expired ? '<span style="font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:20px;background:#fdecea;color:#8a1f11;">Expired</span>' : '';
+      return `
+        <tr>
+          <td style="width:28px;vertical-align:top;padding-top:14px;"><input type="checkbox" ${DS.memberSel.has(m.id)?'checked':''} ${placeholder?'disabled title="No real email on file"':''} onchange="Dashboard.toggleMemberSel('${m.id}',this.checked)"></td>
+          <td>
+            <div style="font-weight:700;color:var(--navy-dark);">${esc(name)} ${planBadge} ${expBadge}</div>
+            <div style="font-size:.75rem;color:var(--gray);margin-top:2px;">${esc(m.email)}</div>
+            <div style="font-size:.7rem;margin-top:6px;font-weight:600;color:var(--navy);">Active: ${start} – ${end}</div>
+          </td>
+          <td style="text-align:right; vertical-align:middle; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+            ${placeholder?'':`<button class="btn-outline-sm" onclick="Dashboard.emailOneMember('${m.id}')">✉️ Email</button>`}
+            <button class="btn-outline-sm" onclick="Dashboard.editMemberDates('${m.id}', '${m.membership_start||''}', '${m.membership_end||''}', '${nameJs}')">Edit Dates</button>
+            <button class="btn-outline-sm" onclick="Dashboard.emailLoginLink('${esc(m.email||'')}', '${nameJs}')">Email login link</button>
+            <button class="btn-outline-sm" onclick="Dashboard.resetMemberPassword('${m.id}', '${nameJs}')">Reset Password</button>
+            <button class="btn-outline-sm" style="color:var(--red);border-color:#f5c6c0;" onclick="Dashboard.deleteMember('${m.id}', '${nameJs}', '${esc(m.email||'')}')">🗑 Delete</button>
+          </td>
+        </tr>`;
+    }).join('');
+    this.updateAudience();
+  },
+  toggleMemberSel(id,on){
+    if(on) DS.memberSel.add(id); else DS.memberSel.delete(id);
+    const r=document.querySelector('input[name="mmAudience"][value="selected"]'); if(on&&r) r.checked=true;
+    this.renderMembers();
+  },
+  selectAllShown(on){
+    this.shownMembers().filter(m=>!(m.email||'').includes('@placeholder.')).forEach(m=>{ if(on) DS.memberSel.add(m.id); else DS.memberSel.delete(m.id); });
+    const r=document.querySelector('input[name="mmAudience"][value="selected"]'); if(on&&r) r.checked=true;
+    this.renderMembers();
+  },
+  emailOneMember(id){
+    DS.memberSel=new Set([id]);
+    document.querySelector('input[name="mmAudience"][value="selected"]').checked=true;
+    this.renderMembers();
+    document.getElementById('mmSubject').scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('mmSubject').focus();
+  },
+  audienceList(){
+    const today=this.memberToday();
+    const ok=m=>m.email && !m.email.includes('@placeholder.');
+    const list=DS.memberList||[];
+    const aud=(document.querySelector('input[name="mmAudience"]:checked')||{}).value||'current';
+    if(aud==='current') return list.filter(m=>ok(m)&&m.membership_end&&m.membership_end>=today);
+    if(aud==='all') return list.filter(ok);
+    return list.filter(m=>ok(m)&&DS.memberSel.has(m.id));
+  },
+  updateAudience(){
+    if(!Array.isArray(DS.memberList)) return;
+    const today=this.memberToday(), ok=m=>m.email&&!m.email.includes('@placeholder.');
+    const n=(f)=>DS.memberList.filter(m=>ok(m)&&f(m)).length;
+    document.getElementById('mmCountCurrent').textContent=`(${n(m=>m.membership_end&&m.membership_end>=today)})`;
+    document.getElementById('mmCountAll').textContent=`(${n(()=>true)})`;
+    document.getElementById('mmCountSelected').textContent=`(${n(m=>DS.memberSel.has(m.id))})`;
+    const aud=(document.querySelector('input[name="mmAudience"]:checked')||{}).value;
+    const sel=DS.memberList.filter(m=>DS.memberSel.has(m.id)).map(m=>`${m.first_name||''} ${m.last_name||''}`.trim());
+    document.getElementById('mmSelectedNames').textContent = aud==='selected'
+      ? (sel.length ? 'To: '+sel.slice(0,12).join(', ')+(sel.length>12?` and ${sel.length-12} more`:'') : 'Tick members in the list above, or press ✉️ Email on a member.')
+      : '';
+  },
+  async sendMemberMessage(){
+    const st=document.getElementById('mmStatus'), btn=document.getElementById('mmSendBtn');
+    const subject=document.getElementById('mmSubject').value.trim();
+    const message=document.getElementById('mmMessage').value.trim();
+    const aud=(document.querySelector('input[name="mmAudience"]:checked')||{}).value||'current';
+    const recips=this.audienceList();
+    const bad=t=>{ st.style.color='var(--red)'; st.textContent=t; };
+    if(!subject) return bad('Add a subject.');
+    if(!message) return bad('Write a message.');
+    if(!recips.length) return bad(aud==='selected'?'Select at least one member.':'No members with an email address in this group.');
+    if(!confirm(`Send "${subject}" to ${recips.length} member${recips.length>1?'s':''}?\n\nIt goes out from info@bellacqualakes.com. Replies go to mtbalake@gmail.com.`)) return;
+    btn.disabled=true; st.style.color='var(--navy)';
+    st.textContent=`Sending to ${recips.length} member${recips.length>1?'s':''}… about ${Math.max(1,Math.ceil(recips.length*0.7))} seconds. Keep this tab open.`;
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/send-email`,{
+        method:'POST',headers:sbH(),
+        body:JSON.stringify({event:'member_message',cred:staffCred(),audience:aud,profile_ids:aud==='selected'?recips.map(m=>m.id):[],subject,message,greet:document.getElementById('mmGreet').checked}),
+      });
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok) throw new Error(d.error||`HTTP ${r.status}`);
+      st.style.color = d.failed ? 'var(--red)' : 'var(--green)';
+      st.textContent = `✅ Sent to ${d.sent} member${d.sent===1?'':'s'}.`+(d.failed?` ${d.failed} failed — see Sent messages.`:'');
+      logAction('members_emailed','member',d.batch_id,{subject,audience:aud,sent:d.sent,failed:d.failed});
+      document.getElementById('mmSubject').value=''; document.getElementById('mmMessage').value='';
+      this.loadSentMessages();
+    }catch(e){ bad('❌ '+e.message); }
+    finally{ btn.disabled=false; }
+  },
+  async loadSentMessages(){
+    const box=document.getElementById('mmHistory'); if(!box) return;
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    try{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/email_log?select=created_at,to_email,to_name,subject,status,error,meta&event=eq.member_message&order=created_at.desc&limit=2000`,{headers:sbH()});
+      if(!r.ok) throw new Error();
+      const rows=await r.json();
+      const batches=[]; const byId={};
+      rows.forEach(x=>{ const id=(x.meta&&x.meta.batch_id)||x.created_at; if(!byId[id]){ byId[id]={id,subject:x.subject,at:x.created_at,staff:(x.meta&&x.meta.staff)||'',aud:(x.meta&&x.meta.audience)||'',items:[]}; batches.push(byId[id]); } byId[id].items.push(x); if(x.created_at<byId[id].at) byId[id].at=x.created_at; });
+      if(!batches.length){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--gray);font-size:.84rem;">No messages sent yet.</div>'; return; }
+      const audLbl={current:'current members',all:'all members',selected:'selected members'};
+      box.innerHTML=batches.map(b=>{
+        const sent=b.items.filter(i=>i.status==='sent').length, failed=b.items.length-sent;
+        return `<details style="border-bottom:1px solid var(--border);padding:12px 16px;">
+          <summary style="cursor:pointer;list-style:revert;">
+            <span style="font-weight:700;color:var(--navy-dark);">${esc(b.subject)}</span>
+            <div style="font-size:.74rem;color:var(--gray);margin-top:3px;">${new Date(b.at).toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}${b.staff?' · by '+esc(b.staff):''} · ${sent} sent${failed?` · <span style="color:#8a1f11;font-weight:700;">${failed} failed</span>`:''}${b.aud?' · '+esc(audLbl[b.aud]||b.aud):''}</div>
+          </summary>
+          <div style="margin-top:8px;font-size:.76rem;line-height:1.7;">${b.items.map(i=>`<div>${i.status==='sent'?'✓':'✗'} ${esc(i.to_name||'')} <span style="color:var(--gray);">${esc(i.to_email)}</span>${i.error?` <span style="color:#8a1f11;">— ${esc(i.error)}</span>`:''}</div>`).join('')}</div>
+        </details>`;
+      }).join('');
+    }catch(e){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--gray);font-size:.84rem;">Could not load sent messages.</div>'; }
   },
   /* ── Membership purchases (self-serve checkout) ── */
   async loadMemberships(){

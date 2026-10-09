@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
       case "installment_failed":  return json(await evInstallment(body, "failed"));
       case "member_password_link": return json(await evMemberPasswordLink(body));
       case "banquet_confirmed":   return json(await evBanquetConfirmed(body));
+      case "member_message":      return json(await evMemberMessage(body));
       case "daily": {
         if (CRON_SECRET && req.headers.get("x-cron-key") !== CRON_SECRET) return json({ error: "Unauthorized" }, 401);
         return json(await evDaily());
@@ -266,6 +267,52 @@ async function evMemberPasswordLink(b: any) {
   if (error || !link?.properties?.action_link) throw new Error(error?.message || "could not create link");
   const r = await send("member_password_link", p.email, `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim(), T.member_password_link({ first: p.first_name, url: link.properties.action_link, welcome: !!b.welcome }), { bookingId: p.id, membershipId: p.id });
   return { ok: true, results: [r] };
+}
+
+/* Member Inbox (staff dashboard → Members tab). Staff write a subject + message;
+   it goes to members only (never arbitrary addresses), one personal email each,
+   from info@bellacqualakes.com with replies to Mike's Gmail.
+   Auth: a staff session token, or a staff PIN (legacy dashboard mode). */
+async function staffFromCred(cred: string) {
+  if (!cred) return null;
+  if (/^[0-9a-f-]{36}$/i.test(cred)) {
+    const { data } = await db.rpc("staff_session_info", { p_token: cred });
+    return data && data.ok ? data.staff : null;
+  }
+  const { data } = await db.rpc("staff_login", { p_pin: cred });
+  return data && data.ok ? data.staff : null;
+}
+async function evMemberMessage(b: any) {
+  const staff = await staffFromCred(String(b.cred ?? ""));
+  if (!staff) throw new Error("Staff login required to email members.");
+  const subject = String(b.subject ?? "").trim();
+  const message = String(b.message ?? "").trim();
+  if (!subject || subject.length > 150) throw new Error("Subject is required (150 characters max).");
+  if (!message || message.length > 10000) throw new Error("Message is required (10,000 characters max).");
+  const audience = ["current", "all", "selected"].includes(b.audience) ? b.audience : "selected";
+
+  let q = db.from("profiles").select("id, email, first_name, last_name, membership_end");
+  if (audience === "current") q = q.gte("membership_end", laDate(0));
+  if (audience === "selected") {
+    const ids = (Array.isArray(b.profile_ids) ? b.profile_ids : []).map(String).filter(x => /^[0-9a-f-]{36}$/i.test(x));
+    if (!ids.length) throw new Error("Pick at least one member.");
+    q = q.in("id", ids);
+  }
+  const { data: rows, error } = await q;
+  if (error) throw error;
+  const recips = (rows ?? []).filter(r => r.email && !r.email.includes("@placeholder.")).slice(0, 500);
+  if (!recips.length) throw new Error("No members with an email address matched.");
+
+  const batchId = crypto.randomUUID();
+  const results = [];
+  for (const r of recips) {
+    const m = T.member_message({ first: r.first_name, subject, message, greet: b.greet !== false });
+    results.push(await send("member_message", r.email, `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(), m,
+      { membershipId: r.id, meta: { batch_id: batchId, audience, staff: staff.name, staff_id: staff.id } }));
+    await new Promise(res => setTimeout(res, 550)); // stay under Resend's 2-per-second limit
+  }
+  const sent = results.filter(x => x.status === "sent").length;
+  return { ok: true, batch_id: batchId, sent, failed: results.length - sent, results };
 }
 
 /* NCWSA banquet ticket paid (square-webhook → banquet_orders).
@@ -644,6 +691,18 @@ const T = {
     text: `Hi ${d.first || "there"},\n\nYour ${planLabel(d.plan)} ends on ${longDate(d.end)} (${d.days} days). Renew to keep your portal access: ${URLS.membership}\nOr reply to this email / call ${PHONE}.`,
   }, d.days <= 7 ? `Your Bell Acqua membership ends ${midDate(d.end)}` : `Renewal reminder: membership ends ${midDate(d.end)}`),
 
+  /* ── Member Inbox ── */
+  member_message: (d: { first?: string; subject: string; message: string; greet?: boolean }): Msg => {
+    const paras = d.message.split(/\n{2,}/).map(p => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
+    const hi = d.greet !== false ? `<p>Hi ${esc(d.first || "there")},</p>` : "";
+    return layout({
+      title: d.subject,
+      preheader: d.message.replace(/\s+/g, " ").slice(0, 110),
+      body: `${hi}${paras}${button("Open the member portal", URLS.portal)}`,
+      text: `${d.greet !== false ? `Hi ${d.first || "there"},\n\n` : ""}${d.message}\n\nMember portal: ${URLS.portal}`,
+    }, d.subject);
+  },
+
   /* ── NCWSA banquet (temporary, Oct 2026) ── */
   banquet_confirmed: (d: { o: any }): Msg => {
     const o = d.o, n = Number(o.quantity || 1);
@@ -795,6 +854,7 @@ function SAMPLES(staff: { name: string; email: string }) {
     installment_failed: { m, p: payments[1], all: payments, reason: "Your card was declined." },
     membership_expiring: { first, end: "2027-10-01", days: 30, plan: "unlimited" },
     member_password_link: { first, url: `${URLS.portal}#type=recovery&access_token=SAMPLE`, welcome: true },
+    member_message: { first, subject: "Lake update: early-morning slots open this week", message: "We've opened extra 7:00 AM slots Monday through Thursday this week while the water is glassy.\n\nBook them in the member portal as usual. Two rides a day max, any spacing.\n\nSee you on the water,\nMike", greet: true },
     banquet_confirmed: { o: { id: "SAMPLE", buyer_name: `${first} Sample`, buyer_email: staff.email, quantity: 4, amount_cents: 30000, receipt_url: "https://squareup.com/receipt/preview/SAMPLE", paid_at: new Date().toISOString() } },
     banquet_reminder:  { o: { id: "SAMPLE", buyer_name: `${first} Sample`, buyer_email: staff.email, quantity: 4 } },
     affiliate_credit: { affiliateName: `${first} Sample`, code: "CREDIT-7F2K9Q", pct: 20, referredFirst: "Jordan" },
